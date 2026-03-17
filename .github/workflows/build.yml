@@ -111,7 +111,6 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libjavascriptcoregtk-4.0-dev \
             libglib2.0-dev \
-            libgio-java \
             libgdk-pixbuf2.0-dev \
             libatk1.0-dev \
             libpango1.0-dev \
