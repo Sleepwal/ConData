@@ -34,6 +34,10 @@ on:
 permissions:
   contents: write  # 用于上传构建产物和创建 Release
 
+# 全局环境变量 - 强制使用 Node.js 24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # 任务定义
 jobs:
   # 构建任务矩阵 - 支持多平台
@@ -82,16 +86,16 @@ jobs:
 
       # 步骤 2: 安装 pnpm
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
           run_install: false
 
       # 步骤 3: 安装 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       # 步骤 4: 安装系统依赖 (Ubuntu)
@@ -208,11 +212,11 @@ jobs:
       - name: List downloaded files
         run: |
           echo "Downloaded artifacts:"
-          find artifacts -type f -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" | sort
+          find artifacts -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" \) | sort
 
       # 步骤 4: 创建 Release
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
@@ -260,10 +264,10 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            artifacts/**/*/*.msi
-            artifacts/**/*/*.exe
-            artifacts/**/*/*.dmg
-            artifacts/**/*/*.deb
-            artifacts/**/*/*.AppImage
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
