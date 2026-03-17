@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { useConnectionStore } from '../../stores/connection'
 
-const router = useRouter()
 const connectionStore = useConnectionStore()
 </script>
 

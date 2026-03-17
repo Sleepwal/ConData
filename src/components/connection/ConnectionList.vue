@@ -4,7 +4,7 @@ import { useConnectionStore } from '../../stores/connection'
 
 const connectionStore = useConnectionStore()
 
-const props = defineProps<{
+defineProps<{
   connections: ConnectionConfig[]
 }>()
 

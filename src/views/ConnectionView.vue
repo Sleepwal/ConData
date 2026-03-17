@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import type { ConnectionConfig } from '../types'
 import { useConnectionStore } from '../stores/connection'
 import ConnectionForm from '../components/connection/ConnectionForm.vue'
 import ConnectionList from '../components/connection/ConnectionList.vue'
 
-const router = useRouter()
 const connectionStore = useConnectionStore()
 
 const showForm = ref(false)
@@ -26,7 +24,7 @@ function handleEditConnection(connection: ConnectionConfig) {
   showForm.value = true
 }
 
-function handleSaveConnection(connection: ConnectionConfig) {
+function handleSaveConnection(_connection: ConnectionConfig) {
   showForm.value = false
   editingConnection.value = null
 }

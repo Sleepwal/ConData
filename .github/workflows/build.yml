@@ -112,11 +112,11 @@ jobs:
         env:
           # GitHub Token，用于上传构建产物
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 配置路径通过环境变量传递
+          TAURI_CONFIG_PATH: src-tauri/tauri.conf.json
         with:
           # 项目目录（包含 src-tauri 的目录）
           projectPath: .
-          # 包含 tauri.conf.json 的目录
-          configPath: src-tauri/tauri.conf.json
           # 构建参数
           args: |
             --target x86_64-pc-windows-msvc
