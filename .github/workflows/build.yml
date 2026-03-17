@@ -1,5 +1,5 @@
 # GitHub Actions Workflow for Tauri App Build
-# 本工作流用于自动构建 Tauri 应用并生成 Windows 可执行文件
+# 本工作流用于自动构建 Tauri 应用并生成多平台可执行文件
 
 name: Build Tauri App
 
@@ -12,11 +12,11 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-  
+
   # 创建 Pull Request 时触发（用于验证构建）
   pull_request:
     branches: [main, master]
-  
+
   # 手动触发（通过 GitHub Actions 页面）
   workflow_dispatch:
     # 手动触发时的输入参数
@@ -36,141 +36,217 @@ permissions:
 
 # 任务定义
 jobs:
-  # Windows 构建任务
-  build-windows:
-    # 运行环境：Windows Server 2022
-    runs-on: windows-latest
-    
+  # 构建任务矩阵 - 支持多平台
+  build:
+    # 策略矩阵：在多个平台和架构上并行构建
+    strategy:
+      fail-fast: false  # 一个平台构建失败不中断其他平台
+      matrix:
+        include:
+          # Windows 64位
+          - platform: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc --bundles msi,nsis'
+            arch: 'x86_64'
+            os_name: 'windows'
+          # macOS Intel
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin --bundles dmg,app'
+            arch: 'x86_64'
+            os_name: 'macos-intel'
+          # macOS Apple Silicon (M1/M2/M3)
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin --bundles dmg,app'
+            arch: 'aarch64'
+            os_name: 'macos-apple-silicon'
+          # Linux x86_64
+          - platform: 'ubuntu-22.04'
+            args: '--target x86_64-unknown-linux-gnu --bundles deb,appimage'
+            arch: 'x86_64'
+            os_name: 'linux'
+
+    # 运行环境
+    runs-on: ${{ matrix.platform }}
+
     # 环境变量
     env:
       # 设置 CI 环境变量，避免 Tauri 交互式提示
       CI: true
-    
+
     # 执行步骤
     steps:
       # 步骤 1: 检出代码
-      # 使用 actions/checkout@v4 检出仓库代码
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # 获取完整的提交历史，用于生成更新日志
           fetch-depth: 0
 
       # 步骤 2: 安装 pnpm
-      # 使用官方 pnpm 安装 Action
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8  # 指定 pnpm 版本
+          version: 8
           run_install: false
 
       # 步骤 3: 安装 Node.js
-      # 使用 actions/setup-node@v4 安装 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20  # 指定 Node.js 版本
-          cache: 'pnpm'     # 启用 pnpm 缓存加速
+          node-version: 20
+          cache: 'pnpm'
 
-      # 步骤 4: 安装 Rust 工具链
-      # Windows 运行器已预装 Rust，这里更新到稳定版并添加目标
+      # 步骤 4: 安装系统依赖 (Ubuntu)
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # 步骤 5: 安装 Rust 工具链
       - name: Setup Rust
-        shell: pwsh
+        shell: bash
         run: |
           rustup update stable
-          rustup target add x86_64-pc-windows-msvc
+          if [[ "${{ matrix.os_name }}" == "macos-apple-silicon" ]]; then
+            rustup target add aarch64-apple-darwin
+          elif [[ "${{ matrix.os_name }}" == "macos-intel" ]]; then
+            rustup target add x86_64-apple-darwin
+          elif [[ "${{ matrix.os_name }}" == "linux" ]]; then
+            rustup target add x86_64-unknown-linux-gnu
+          elif [[ "${{ matrix.os_name }}" == "windows" ]]; then
+            rustup target add x86_64-pc-windows-msvc
+          fi
           rustc --version
           cargo --version
 
-      # 步骤 5: 缓存 Rust 依赖
-      # 使用 Swatinem/rust-cache 加速 Rust 构建
+      # 步骤 6: 缓存 Rust 依赖
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          # 指定工作目录
           workspaces: src-tauri
-          # 缓存键前缀
-          prefix-key: rust-cache
+          prefix-key: rust-cache-${{ matrix.os_name }}-${{ matrix.arch }}
 
-      # 步骤 6: 安装前端依赖
-      # 执行 pnpm install 安装 Node.js 依赖
+      # 步骤 7: 安装前端依赖
       - name: Install frontend dependencies
         run: pnpm install
 
-      # 步骤 7: 前端代码类型检查
-      # 运行 TypeScript 类型检查确保代码质量
+      # 步骤 8: 前端代码类型检查
       - name: Type check
         run: pnpm vue-tsc --noEmit
-        # 即使类型检查失败也继续构建（可选）
         continue-on-error: true
 
-      # 步骤 8: 构建 Tauri 应用
-      # 使用 Tauri 官方 GitHub Action 进行构建
+      # 步骤 9: 构建 Tauri 应用
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         id: tauri_build
         env:
-          # GitHub Token，用于上传构建产物
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 配置路径通过环境变量传递
           TAURI_CONFIG_PATH: src-tauri/tauri.conf.json
+          # macOS 签名配置（可选，如需签名请配置以下 secrets）
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          # 项目目录（包含 src-tauri 的目录）
           projectPath: .
-          # 构建参数
-          args: |
-            --target x86_64-pc-windows-msvc
-            --bundles msi,nsis
+          args: ${{ matrix.args }}
 
-      # 步骤 9: 上传构建产物（Artifacts）
-      # 将构建好的文件上传到 GitHub Actions
+      # 步骤 10: 上传构建产物（Artifacts）
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          # 产物名称
-          name: windows-build
-          # 产物路径（使用通配符匹配所有构建输出）
+          name: ${{ matrix.os_name }}-${{ matrix.arch }}-build
           path: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/ConData.exe
-          # 保留天数
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/app/*.app
           retention-days: 30
-          # 如果文件不存在不报错
           if-no-files-found: warn
 
-      # 步骤 10: 创建 Release（仅在手动触发且选择创建发布时）
+  # 创建 Release 任务（仅在手动触发且选择创建发布时）
+  create-release:
+    needs: build  # 依赖构建任务完成
+    if: github.event.inputs.release == 'true' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 步骤 1: 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 步骤 2: 下载所有构建产物
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: '*-build'
+
+      # 步骤 3: 列出下载的文件
+      - name: List downloaded files
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" | sort
+
+      # 步骤 4: 创建 Release
       - name: Create Release
-        if: github.event.inputs.release == 'true' && github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
-          # 自动生成标签名
           tag_name: v${{ github.run_number }}
-          # 发布名称
           name: Release v${{ github.run_number }}
-          # 发布内容
           body: |
             ## ConData Release v${{ github.run_number }}
-            
+
             ### 下载安装程序
-            - **MSI 安装程序**: 推荐大多数用户使用
-            - **EXE 安装程序**: 使用 NSIS 打包
-            
+
+            #### Windows
+            - **MSI 安装程序** (x86_64): 推荐大多数 Windows 用户使用
+            - **EXE 安装程序** (x86_64): 使用 NSIS 打包
+
+            #### macOS
+            - **DMG 安装包** (Intel): 适用于 Intel 芯片的 Mac
+            - **DMG 安装包** (Apple Silicon): 适用于 M1/M2/M3 芯片的 Mac
+            - **APP 文件**: 可直接运行的应用程序包
+
+            #### Linux
+            - **DEB 安装包** (x86_64): 适用于 Debian/Ubuntu 系统
+            - **AppImage** (x86_64): 免安装，适用于大多数 Linux 发行版
+
             ### 安装说明
-            1. 下载对应的安装程序
+
+            **Windows:**
+            1. 下载 MSI 或 EXE 安装程序
             2. 双击运行安装程序
             3. 按照向导完成安装
-            
+
+            **macOS:**
+            1. 下载对应架构的 DMG 文件
+            2. 双击打开 DMG
+            3. 将应用拖到 Applications 文件夹
+
+            **Linux:**
+            - DEB: `sudo dpkg -i ConData_*.deb`
+            - AppImage: 下载后 `chmod +x ConData_*.AppImage` 然后直接运行
+
             ### 系统要求
-            - Windows 10/11 64位
-            - 无需额外安装运行时
-          # 是否为草稿
+            - **Windows**: Windows 10/11 64位
+            - **macOS**: macOS 11.0 或更高版本
+            - **Linux**: Ubuntu 20.04+ / Debian 10+ / 其他支持 glibc 2.31+ 的发行版
+
+            ### 更新日志
+            查看 [CHANGELOG.md](./CHANGELOG.md) 了解详细更新内容。
           draft: true
-          # 是否为预发布
           prerelease: false
-          # 上传的文件
           files: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
+            artifacts/**/*/*.msi
+            artifacts/**/*/*.exe
+            artifacts/**/*/*.dmg
+            artifacts/**/*/*.deb
+            artifacts/**/*/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
