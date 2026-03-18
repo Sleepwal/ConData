@@ -77,12 +77,13 @@ impl ConnectionPool {
     /// let pool = ConnectionPool::create_pool(&config).await?;
     /// ```
     pub async fn create_pool(config: &ConnectionConfig) -> Result<Pool> {
+        let password = config.get_password()?;
         let mut cfg = Config::new();
         cfg.host = Some(config.host.clone());
         cfg.port = Some(config.port);
         cfg.dbname = Some(config.database.clone());
         cfg.user = Some(config.username.clone());
-        cfg.password = Some(config.password.clone());
+        cfg.password = password;
         
         // 配置连接池管理器
         // RecyclingMethod::Fast 表示快速回收连接，不进行额外的验证

@@ -12,3 +12,8 @@ pub mod connection;
 ///
 /// 包含查询请求、查询结果、表结构等结构体定义
 pub mod query;
+
+/// 安全相关数据模型
+///
+/// 包含密码加密等安全功能
+pub mod security;

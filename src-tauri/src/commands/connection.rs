@@ -6,18 +6,15 @@ use crate::services::postgres_service::PostgresService;
 
 #[tauri::command]
 pub async fn test_connection(request: TestConnectionRequest) -> Result<ConnectionStatus> {
-    let config = ConnectionConfig {
-        id: "test".to_string(),
-        name: "test".to_string(),
-        host: request.host,
-        port: request.port,
-        database: request.database,
-        username: request.username,
-        password: request.password,
-        ssl_mode: request.ssl_mode,
-        created_at: None,
-        updated_at: None,
-    };
+    let mut config = ConnectionConfig::new(
+        "test".to_string(),
+        request.host,
+        request.port,
+        request.database,
+        request.username,
+        request.password,
+    );
+    config.ssl_mode = request.ssl_mode;
 
     match ConnectionPool::test_connection(&config).await {
         Ok(_) => Ok(ConnectionStatus {

@@ -3,6 +3,7 @@
 //! 本模块定义了应用程序中使用的统一错误类型，提供错误转换和格式化功能。
 //! 所有错误类型都实现了 serde 的序列化/反序列化，以便通过 Tauri 命令传递给前端。
 
+use crate::models::security::SecurityError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -41,6 +42,11 @@ pub enum AppError {
     /// 
     /// 参数：错误描述字符串
     InternalError(String),
+    
+    /// 安全相关错误
+    /// 
+    /// 参数：错误描述字符串
+    SecurityError(String),
 }
 
 impl fmt::Display for AppError {
@@ -59,6 +65,7 @@ impl fmt::Display for AppError {
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+            AppError::SecurityError(msg) => write!(f, "Security error: {}", msg),
         }
     }
 }
@@ -116,6 +123,19 @@ impl From<anyhow::Error> for AppError {
     /// * `AppError::InternalError` - 包装后的内部错误
     fn from(err: anyhow::Error) -> Self {
         AppError::InternalError(err.to_string())
+    }
+}
+
+impl From<SecurityError> for AppError {
+    /// 从 SecurityError 错误转换为 AppError
+    /// 
+    /// # 参数
+    /// * `err` - 安全错误
+    /// 
+    /// # 返回值
+    /// * `AppError::SecurityError` - 包装后的安全错误
+    fn from(err: SecurityError) -> Self {
+        AppError::SecurityError(err.to_string())
     }
 }
 
