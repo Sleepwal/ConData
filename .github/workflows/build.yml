@@ -49,7 +49,7 @@ jobs:
         include:
           # Windows 64位
           - platform: 'windows-latest'
-            args: '--target x86_64-pc-windows-msvc --bundles msi,nsis'
+            args: '--target x86_64-pc-windows-msvc --bundles msi,nsis,portable'
             arch: 'x86_64'
             os_name: 'windows'
           # macOS Intel
@@ -181,6 +181,7 @@ jobs:
           path: |
             src-tauri/target/*/release/bundle/msi/*.msi
             src-tauri/target/*/release/bundle/nsis/*.exe
+            src-tauri/target/*/release/bundle/portable/*.exe
             src-tauri/target/*/release/bundle/dmg/*.dmg
             src-tauri/target/*/release/bundle/deb/*.deb
             src-tauri/target/*/release/bundle/appimage/*.AppImage
@@ -228,6 +229,7 @@ jobs:
             #### Windows
             - **MSI 安装程序** (x86_64): 推荐大多数 Windows 用户使用
             - **EXE 安装程序** (x86_64): 使用 NSIS 打包
+            - **Portable 便携版** (x86_64): 免安装，直接运行
 
             #### macOS
             - **DMG 安装包** (Intel): 适用于 Intel 芯片的 Mac
@@ -241,9 +243,9 @@ jobs:
             ### 安装说明
 
             **Windows:**
-            1. 下载 MSI 或 EXE 安装程序
-            2. 双击运行安装程序
-            3. 按照向导完成安装
+            1. 下载 MSI 或 EXE 安装程序（推荐）或 Portable 便携版
+            2. 安装版：双击运行安装程序，按照向导完成安装
+            3. 便携版：下载后直接运行，无需安装
 
             **macOS:**
             1. 下载对应架构的 DMG 文件
