@@ -210,7 +210,7 @@ function formatValue(value: any): string {
 
 <style scoped>
 .table-detail-card {
-  background: white;
+  background: var(--card-bg, white);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   width: 100%;
@@ -224,8 +224,8 @@ function formatValue(value: any): string {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
+  border-bottom: 1px solid var(--border-color, #eee);
+  background-color: var(--bg-color, #fafafa);
 }
 
 .header-title {
@@ -237,7 +237,7 @@ function formatValue(value: any): string {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-color, #333);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -245,16 +245,16 @@ function formatValue(value: any): string {
 }
 
 .schema-name {
-  color: #666;
+  color: var(--text-color-secondary, #666);
   font-weight: 500;
 }
 
 .separator {
-  color: #999;
+  color: var(--text-color-disabled, #999);
 }
 
 .name {
-  color: #333;
+  color: var(--text-color, #333);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
@@ -281,13 +281,13 @@ function formatValue(value: any): string {
   align-items: center;
   justify-content: center;
   background-color: transparent;
-  color: #999;
+  color: var(--text-color-disabled, #999);
   font-size: 18px;
 }
 
 .btn-close:hover {
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: var(--hover-bg, #f5f5f5);
+  color: var(--text-color, #333);
 }
 
 .tab-content {
@@ -301,14 +301,14 @@ function formatValue(value: any): string {
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-color-secondary, #666);
   margin: 0 0 12px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .table-container {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -320,17 +320,17 @@ function formatValue(value: any): string {
 }
 
 .columns-table th {
-  background-color: #f5f5f5;
+  background-color: var(--table-header-bg, #f5f5f5);
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: #555;
-  border-bottom: 1px solid #e0e0e0;
+  color: var(--text-color, #555);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
 .columns-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-color-light, #f0f0f0);
 }
 
 .columns-table tr:last-child td {
@@ -338,15 +338,15 @@ function formatValue(value: any): string {
 }
 
 .columns-table tr:hover {
-  background-color: #fafafa;
+  background-color: var(--hover-bg, #fafafa);
 }
 
 .columns-table tr.is-pk {
-  background-color: #fff8e1;
+  background-color: var(--pk-bg, #fff8e1);
 }
 
 .columns-table tr.is-pk:hover {
-  background-color: #ffecb3;
+  background-color: var(--pk-bg-hover, #ffecb3);
 }
 
 .col-name {
@@ -374,11 +374,11 @@ function formatValue(value: any): string {
 .column-name {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-weight: 500;
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 .data-type {
-  color: #666;
+  color: var(--text-color-secondary, #666);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
@@ -387,17 +387,17 @@ function formatValue(value: any): string {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
-  background-color: #e0e0e0;
-  color: #666;
+  background-color: var(--badge-bg, #e0e0e0);
+  color: var(--text-color-secondary, #666);
 }
 
 .nullable-badge.is-nullable {
-  background-color: #e3f2fd;
-  color: #1976D2;
+  background-color: var(--badge-primary-bg, #e3f2fd);
+  color: var(--primary-color, #1976D2);
 }
 
 .default-value {
-  color: #888;
+  color: var(--text-color-disabled, #888);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 12px;
   max-width: 200px;
@@ -418,7 +418,7 @@ function formatValue(value: any): string {
 }
 
 .stat-item {
-  background-color: #f5f5f5;
+  background-color: var(--stat-bg, #f5f5f5);
   padding: 16px;
   border-radius: 6px;
   text-align: center;
@@ -427,7 +427,7 @@ function formatValue(value: any): string {
 .stat-label {
   display: block;
   font-size: 12px;
-  color: #666;
+  color: var(--text-color-secondary, #666);
   margin-bottom: 4px;
 }
 
@@ -435,7 +435,7 @@ function formatValue(value: any): string {
   display: block;
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 /* 表数据 Tab 样式 */
@@ -449,17 +449,17 @@ function formatValue(value: any): string {
   display: flex;
   gap: 16px;
   font-size: 14px;
-  color: #666;
+  color: var(--text-color-secondary, #666);
 }
 
 .result-stats .stat strong {
-  color: #333;
+  color: var(--text-color, #333);
 }
 
 .table-wrapper {
   overflow: auto;
   max-height: 400px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 6px;
 }
 
@@ -473,21 +473,21 @@ function formatValue(value: any): string {
 .data-table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color-light, #eee);
   white-space: nowrap;
 }
 
 .data-table th {
-  background-color: #f5f5f5;
+  background-color: var(--table-header-bg, #f5f5f5);
   font-weight: 600;
-  color: #333;
+  color: var(--text-color, #333);
   position: sticky;
   top: 0;
   z-index: 1;
 }
 
 .data-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--hover-bg, #f8f9fa);
 }
 
 .null-value {
@@ -497,8 +497,8 @@ function formatValue(value: any): string {
 
 .error-message {
   padding: 20px;
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: var(--error-bg, #ffebee);
+  color: var(--error-color, #c62828);
   border-radius: 6px;
   font-size: 14px;
 }

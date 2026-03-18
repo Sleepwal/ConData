@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useQueryStore } from '../../stores/query'
+import { useFeedback } from '../../composables/useFeedback'
 
 const queryStore = useQueryStore()
+const { msg, confirm } = useFeedback()
 
 const hasHistory = computed(() => queryStore.queryHistory.length > 0)
 
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
-  return date.toLocaleTimeString('zh-CN', { 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit' 
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
   })
-}
-
-function truncateSql(sql: string, maxLength: number = 50): string {
-  if (sql.length <= maxLength) return sql
-  return sql.substring(0, maxLength) + '...'
 }
 
 function useQuery(sql: string) {
@@ -25,155 +22,99 @@ function useQuery(sql: string) {
 }
 
 function clearHistory() {
-  if (confirm('确定要清空查询历史吗？')) {
-    queryStore.clearHistory()
-  }
+  confirm.warning({
+    title: '清空历史',
+    content: '确定要清空查询历史吗？此操作不可撤销。',
+    positiveText: '清空',
+    negativeText: '取消',
+    onPositive: () => {
+      queryStore.clearHistory()
+      msg.success('查询历史已清空')
+    },
+  })
 }
 </script>
 
 <template>
-  <div class="query-history">
-    <div class="history-header">
-      <h3 class="history-title">查询历史</h3>
-      <button 
-        v-if="hasHistory"
-        class="btn btn-sm btn-danger"
-        @click="clearHistory"
-      >
+  <n-card class="query-history" title="查询历史" size="small">
+    <template #header-extra>
+      <n-button v-if="hasHistory" size="small" type="error" text @click="clearHistory">
+        <template #icon>
+          <n-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg></n-icon>
+        </template>
         清空
-      </button>
-    </div>
+      </n-button>
+    </template>
 
-    <div v-if="!hasHistory" class="empty-history">
-      暂无查询历史
-    </div>
+    <n-empty v-if="!hasHistory" description="暂无查询历史" />
 
     <div v-else class="history-list">
-      <div 
-        v-for="item in queryStore.queryHistory" 
-        :key="item.id"
-        class="history-item"
-        :class="{ failed: !item.success }"
-        @click="useQuery(item.sql)"
-      >
-        <div class="history-sql" :title="item.sql">
-          {{ truncateSql(item.sql) }}
-        </div>
-        <div class="history-meta">
-          <span class="history-time">{{ formatTime(item.executed_at) }}</span>
-          <span class="history-stats">
-            {{ item.row_count }} 行 | {{ item.execution_time_ms }}ms
-          </span>
-          <span v-if="!item.success" class="history-status failed">失败</span>
-        </div>
-      </div>
+      <n-space vertical :size="8" style="width: 100%">
+        <n-card
+          v-for="item in queryStore.queryHistory"
+          :key="item.id"
+          size="small"
+          :class="['history-item', { failed: !item.success }]"
+          hoverable
+          @click="useQuery(item.sql)"
+        >
+          <template #header>
+            <n-ellipsis :tooltip="{ width: '300px' }" style="max-width: 100%">
+              <code class="history-sql">{{ item.sql }}</code>
+            </n-ellipsis>
+          </template>
+
+          <n-space justify="space-between" size="small">
+            <n-text depth="3" class="history-time">{{ formatTime(item.executed_at) }}</n-text>
+            <n-space size="small">
+              <n-tag size="small" :type="item.success ? 'success' : 'error'">{{ item.row_count }} 行</n-tag>
+              <n-tag size="small" type="info">{{ item.execution_time_ms }}ms</n-tag>
+            </n-space>
+          </n-space>
+        </n-card>
+      </n-space>
     </div>
-  </div>
+  </n-card>
 </template>
 
 <style scoped>
 .query-history {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.history-header {
+  max-height: 400px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
-}
-
-.history-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.empty-history {
-  padding: 40px 20px;
-  text-align: center;
-  color: #999;
-  font-size: 14px;
+  flex-direction: column;
 }
 
 .history-list {
-  max-height: 300px;
   overflow-y: auto;
+  max-height: 320px;
 }
 
 .history-item {
-  padding: 12px 20px;
-  border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
 }
 
 .history-item:hover {
-  background-color: #f5f5f5;
+  border-color: #667eea;
 }
 
 .history-item.failed {
-  border-left: 3px solid #f44336;
+  border-left-color: #f44336;
+}
+
+.history-item.failed:hover {
+  border-left-color: #f44336;
 }
 
 .history-sql {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
-  color: #333;
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.history-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: #999;
 }
 
 .history-time {
-  color: #666;
-}
-
-.history-stats {
-  color: #2196F3;
-}
-
-.history-status.failed {
-  color: #f44336;
-  font-weight: 500;
-}
-
-.btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.btn:hover {
-  background-color: #e0e0e0;
-}
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-}
-
-.btn-danger:hover {
-  background-color: #d32f2f;
+  font-size: 12px;
 }
 </style>

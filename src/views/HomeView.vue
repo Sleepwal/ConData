@@ -33,75 +33,88 @@ function goToQuery() {
     </div>
 
     <div class="dashboard-grid">
-      <div class="dashboard-card connections-card" @click="goToConnections">
-        <div class="card-icon">🔌</div>
-        <div class="card-content">
-          <h3 class="card-title">连接管理</h3>
-          <p class="card-value">{{ connectionCount }} 个连接</p>
-          <p class="card-description">管理您的数据库连接配置</p>
-        </div>
-      </div>
+      <n-card hoverable class="dashboard-card" @click="goToConnections">
+        <n-space align="center" size="large">
+          <span class="card-icon">🔌</span>
+          <div class="card-content">
+            <n-h3 class="card-title">连接管理</n-h3>
+            <n-text class="card-value" strong>{{ connectionCount }} 个连接</n-text>
+            <n-text depth="3" class="card-description">管理您的数据库连接配置</n-text>
+          </div>
+        </n-space>
+      </n-card>
 
-      <div class="dashboard-card query-card" @click="goToQuery">
-        <div class="card-icon">🔍</div>
-        <div class="card-content">
-          <h3 class="card-title">查询执行</h3>
-          <p class="card-value">SQL 编辑器</p>
-          <p class="card-description">执行 SQL 查询并查看结果</p>
-        </div>
-      </div>
+      <n-card hoverable class="dashboard-card" @click="goToQuery">
+        <n-space align="center" size="large">
+          <span class="card-icon">🔍</span>
+          <div class="card-content">
+            <n-h3 class="card-title">查询执行</n-h3>
+            <n-text class="card-value" strong>SQL 编辑器</n-text>
+            <n-text depth="3" class="card-description">执行 SQL 查询并查看结果</n-text>
+          </div>
+        </n-space>
+      </n-card>
     </div>
 
-    <div class="info-section">
-      <div class="info-card current-connection">
-        <h3 class="info-title">当前连接</h3>
-        <div v-if="activeConnection" class="connection-details">
-          <div class="detail-item">
-            <span class="detail-label">名称:</span>
-            <span class="detail-value">{{ activeConnection.name }}</span>
+    <n-grid :cols="2" :x-gap="24" responsive="screen">
+      <n-grid-item>
+        <n-card title="当前连接">
+          <div v-if="activeConnection" class="connection-details">
+            <n-space vertical size="small">
+              <n-space justify="space-between">
+                <n-text depth="3">名称:</n-text>
+                <n-text strong>{{ activeConnection.name }}</n-text>
+              </n-space>
+              <n-space justify="space-between">
+                <n-text depth="3">主机:</n-text>
+                <n-text strong>{{ activeConnection.host }}:{{ activeConnection.port }}</n-text>
+              </n-space>
+              <n-space justify="space-between">
+                <n-text depth="3">数据库:</n-text>
+                <n-text strong>{{ activeConnection.database }}</n-text>
+              </n-space>
+              <n-space justify="space-between">
+                <n-text depth="3">状态:</n-text>
+                <n-tag :type="connectionStore.isConnected ? 'success' : 'default'" size="small">
+                  {{ connectionStore.isConnected ? '已连接' : '未连接' }}
+                </n-tag>
+              </n-space>
+            </n-space>
           </div>
-          <div class="detail-item">
-            <span class="detail-label">主机:</span>
-            <span class="detail-value">{{ activeConnection.host }}:{{ activeConnection.port }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">数据库:</span>
-            <span class="detail-value">{{ activeConnection.database }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">状态:</span>
-            <span class="detail-value" :class="{ connected: connectionStore.isConnected }">
-              {{ connectionStore.isConnected ? '已连接' : '未连接' }}
-            </span>
-          </div>
-        </div>
-        <div v-else class="no-connection">
-          <p>暂无活动连接</p>
-          <button class="btn btn-primary" @click="goToConnections">去连接</button>
-        </div>
-      </div>
+          <n-empty v-else description="暂无活动连接">
+            <template #extra>
+              <n-button type="primary" @click="goToConnections">去连接</n-button>
+            </template>
+          </n-empty>
+        </n-card>
+      </n-grid-item>
 
-      <div class="info-card recent-queries">
-        <h3 class="info-title">最近查询</h3>
-        <div v-if="recentQueries.length > 0" class="queries-list">
-          <div 
-            v-for="query in recentQueries" 
-            :key="query.id"
-            class="query-item"
-            :class="{ failed: !query.success }"
-          >
-            <div class="query-sql">{{ query.sql.substring(0, 50) }}{{ query.sql.length > 50 ? '...' : '' }}</div>
-            <div class="query-meta">
-              <span class="query-time">{{ new Date(query.executed_at).toLocaleTimeString() }}</span>
-              <span class="query-stats">{{ query.row_count }} 行 | {{ query.execution_time_ms }}ms</span>
-            </div>
+      <n-grid-item>
+        <n-card title="最近查询">
+          <div v-if="recentQueries.length > 0" class="queries-list">
+            <n-card
+              v-for="query in recentQueries"
+              :key="query.id"
+              size="small"
+              :class="['query-item', { failed: !query.success }]"
+              hoverable
+            >
+              <n-ellipsis style="max-width: 100%">
+                <code class="query-sql">{{ query.sql }}</code>
+              </n-ellipsis>
+              <n-space justify="space-between" size="small" style="margin-top: 8px">
+                <n-text depth="3" class="query-time">{{ new Date(query.executed_at).toLocaleTimeString() }}</n-text>
+                <n-space size="small">
+                  <n-tag size="small" :type="query.success ? 'success' : 'error'">{{ query.row_count }} 行</n-tag>
+                  <n-tag size="small">{{ query.execution_time_ms }}ms</n-tag>
+                </n-space>
+              </n-space>
+            </n-card>
           </div>
-        </div>
-        <div v-else class="no-queries">
-          <p>暂无查询记录</p>
-        </div>
-      </div>
-    </div>
+          <n-empty v-else description="暂无查询记录" />
+        </n-card>
+      </n-grid-item>
+    </n-grid>
   </div>
 </template>
 
@@ -118,7 +131,6 @@ function goToQuery() {
 .welcome-title {
   font-size: 32px;
   font-weight: 700;
-  color: #333;
   margin: 0 0 8px 0;
 }
 
@@ -136,20 +148,12 @@ function goToQuery() {
 }
 
 .dashboard-card {
-  background: white;
-  border-radius: 12px;
-  padding: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 24px;
 }
 
 .dashboard-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .card-icon {
@@ -157,116 +161,38 @@ function goToQuery() {
 }
 
 .card-content {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
   margin: 0 0 8px 0;
+  font-size: 20px;
 }
 
 .card-value {
   font-size: 24px;
-  font-weight: 700;
   color: #667eea;
-  margin: 0 0 4px 0;
+  margin-bottom: 4px;
 }
 
 .card-description {
   font-size: 14px;
-  color: #999;
-  margin: 0;
-}
-
-.info-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-}
-
-.info-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.info-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
 }
 
 .connection-details {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.detail-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.detail-value.connected {
-  color: #4CAF50;
-}
-
-.no-connection {
-  text-align: center;
-  padding: 20px;
-  color: #999;
-}
-
-.no-connection p {
-  margin: 0 0 16px 0;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background-color: #667eea;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #5a6fd6;
+  padding: 8px 0;
 }
 
 .queries-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .query-item {
-  padding: 12px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
   border-left: 3px solid #667eea;
 }
 
@@ -277,27 +203,9 @@ function goToQuery() {
 .query-sql {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
-  color: #333;
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.query-meta {
-  display: flex;
-  justify-content: space-between;
+.query-time {
   font-size: 12px;
-  color: #999;
-}
-
-.query-stats {
-  color: #667eea;
-}
-
-.no-queries {
-  text-align: center;
-  padding: 20px;
-  color: #999;
 }
 </style>

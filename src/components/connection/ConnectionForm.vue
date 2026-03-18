@@ -3,8 +3,10 @@ import { ref, reactive, watch } from 'vue'
 import type { ConnectionConfig, TestConnectionRequest } from '../../types'
 import { SslMode } from '../../types'
 import { useConnectionStore } from '../../stores/connection'
+import { useFeedback } from '../../composables/useFeedback'
 
 const connectionStore = useConnectionStore()
+const { msg } = useFeedback()
 
 const props = defineProps<{
   editConnection?: ConnectionConfig | null
@@ -109,27 +111,28 @@ async function saveConnection() {
 
   try {
     const saved = await connectionStore.saveConnection(config)
+    msg.success('连接保存成功')
     emit('saved', saved)
   } catch (err) {
-    console.error('Failed to save connection:', err)
+    msg.error('保存失败: ' + (err instanceof Error ? err.message : '未知错误'))
   }
 }
 
 function validateForm(): boolean {
   if (!form.name.trim()) {
-    alert('请输入连接名称')
+    msg.warning('请输入连接名称')
     return false
   }
   if (!form.host.trim()) {
-    alert('请输入主机地址')
+    msg.warning('请输入主机地址')
     return false
   }
   if (!form.database.trim()) {
-    alert('请输入数据库名称')
+    msg.warning('请输入数据库名称')
     return false
   }
   if (!form.username.trim()) {
-    alert('请输入用户名')
+    msg.warning('请输入用户名')
     return false
   }
   return true
@@ -141,182 +144,94 @@ function cancel() {
 </script>
 
 <template>
-  <div class="connection-form">
-    <h3 class="form-title">{{ editConnection ? '编辑连接' : '新建连接' }}</h3>
-
-    <div v-if="testResult" class="test-result" :class="{ success: testResult.success, error: !testResult.success }">
+  <n-card class="connection-form" :title="editConnection ? '编辑连接' : '新建连接'">
+    <n-alert
+      v-if="testResult"
+      :type="testResult.success ? 'success' : 'error'"
+      closable
+      @close="testResult = null"
+    >
       {{ testResult.message }}
-    </div>
+    </n-alert>
 
-    <form @submit.prevent="saveConnection">
-      <div class="form-row">
-        <div class="form-group">
-          <label>连接名称 *</label>
-          <input v-model="form.name" type="text" class="form-control" placeholder="例如：生产数据库" required />
-        </div>
-      </div>
+    <n-form label-placement="left" label-width="100" require-mark-placement="right-hanging">
+      <n-grid :cols="2" :x-gap="16">
+        <n-grid-item :span="2">
+          <n-form-item label="连接名称" required>
+            <n-input v-model:value="form.name" placeholder="例如：生产数据库" />
+          </n-form-item>
+        </n-grid-item>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>主机地址 *</label>
-          <input v-model="form.host" type="text" class="form-control" placeholder="localhost" required />
-        </div>
-        <div class="form-group">
-          <label>端口 *</label>
-          <input v-model.number="form.port" type="number" class="form-control" placeholder="5432" required />
-        </div>
-      </div>
+        <n-grid-item>
+          <n-form-item label="主机地址" required>
+            <n-input v-model:value="form.host" placeholder="localhost" />
+          </n-form-item>
+        </n-grid-item>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>数据库名称 *</label>
-          <input v-model="form.database" type="text" class="form-control" placeholder="postgres" required />
-        </div>
-        <div class="form-group">
-          <label>SSL 模式</label>
-          <select v-model="form.ssl_mode" class="form-control">
-            <option v-for="mode in sslModes" :key="mode.value" :value="mode.value">
-              {{ mode.label }}
-            </option>
-          </select>
-        </div>
-      </div>
+        <n-grid-item>
+          <n-form-item label="端口" required>
+            <n-input-number v-model:value="form.port" :min="1" :max="65535" style="width: 100%" />
+          </n-form-item>
+        </n-grid-item>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>用户名 *</label>
-          <input v-model="form.username" type="text" class="form-control" placeholder="postgres" required />
-        </div>
-        <div class="form-group">
-          <label>密码</label>
-          <input v-model="form.password" type="password" class="form-control" placeholder="输入密码" />
-        </div>
-      </div>
+        <n-grid-item>
+          <n-form-item label="数据库名称" required>
+            <n-input v-model:value="form.database" placeholder="postgres" />
+          </n-form-item>
+        </n-grid-item>
 
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" @click="testConnection" :disabled="testing">
-          {{ testing ? '测试中...' : '测试连接' }}
-        </button>
-        <div class="spacer"></div>
-        <button type="button" class="btn" @click="cancel">取消</button>
-        <button type="submit" class="btn btn-primary" :disabled="connectionStore.loading">
-          {{ connectionStore.loading ? '保存中...' : '保存连接' }}
-        </button>
-      </div>
-    </form>
-  </div>
+        <n-grid-item>
+          <n-form-item label="SSL 模式">
+            <n-select v-model:value="form.ssl_mode" :options="sslModes" />
+          </n-form-item>
+        </n-grid-item>
+
+        <n-grid-item>
+          <n-form-item label="用户名" required>
+            <n-input v-model:value="form.username" placeholder="postgres" />
+          </n-form-item>
+        </n-grid-item>
+
+        <n-grid-item>
+          <n-form-item label="密码">
+            <n-input v-model:value="form.password" type="password" placeholder="输入密码" show-password-on="click" />
+          </n-form-item>
+        </n-grid-item>
+      </n-grid>
+
+      <n-divider />
+
+      <n-space justify="space-between">
+        <n-button @click="testConnection" :loading="testing">
+          <template #icon>
+            <n-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></n-icon>
+          </template>
+          测试连接
+        </n-button>
+        <n-space>
+          <n-button @click="cancel">取消</n-button>
+          <n-button type="primary" @click="saveConnection" :loading="connectionStore.loading">
+            保存连接
+          </n-button>
+        </n-space>
+      </n-space>
+    </n-form>
+  </n-card>
 </template>
 
 <style scoped>
 .connection-form {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease;
 }
 
-.form-title {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
-}
-
-.form-control {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: #4CAF50;
-}
-
-.test-result {
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-  font-size: 14px;
-}
-
-.test-result.success {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.test-result.error {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #e0e0e0;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.btn-secondary {
-  background-color: #2196F3;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #1976D2;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

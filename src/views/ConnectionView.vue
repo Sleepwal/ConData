@@ -2,10 +2,12 @@
 import { ref, onMounted } from 'vue'
 import type { ConnectionConfig } from '../types'
 import { useConnectionStore } from '../stores/connection'
+import { useFeedback } from '../composables/useFeedback'
 import ConnectionForm from '../components/connection/ConnectionForm.vue'
 import ConnectionList from '../components/connection/ConnectionList.vue'
 
 const connectionStore = useConnectionStore()
+const { msg, confirm } = useFeedback()
 
 const showForm = ref(false)
 const editingConnection = ref<ConnectionConfig | null>(null)
@@ -34,18 +36,33 @@ function handleCancel() {
   editingConnection.value = null
 }
 
-async function handleDeleteConnection(id: string) {
-  if (confirm('确定要删除这个连接吗？')) {
-    await connectionStore.deleteConnection(id)
-  }
+function handleDeleteConnection(id: string) {
+  confirm.warning({
+    title: '删除连接',
+    content: '确定要删除这个连接吗？此操作不可撤销。',
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositive: async () => {
+      try {
+        await connectionStore.deleteConnection(id)
+        msg.success('连接已删除')
+      } catch (err) {
+        msg.error('删除失败: ' + (err instanceof Error ? err.message : '未知错误'))
+      }
+    },
+  })
 }
 
 async function handleConnect(id: string) {
-  const status = await connectionStore.connect(id)
-  if (status.connected) {
-    alert('连接成功！')
-  } else {
-    alert('连接失败: ' + status.message)
+  try {
+    const status = await connectionStore.connect(id)
+    if (status.connected) {
+      msg.success('连接成功！')
+    } else {
+      msg.error('连接失败: ' + status.message)
+    }
+  } catch (err) {
+    msg.error('连接失败: ' + (err instanceof Error ? err.message : '未知错误'))
   }
 }
 </script>
@@ -54,15 +71,17 @@ async function handleConnect(id: string) {
   <div class="connection-view">
     <div class="view-header">
       <h2 class="view-title">连接管理</h2>
-      <button v-if="!showForm" class="btn btn-primary" @click="handleNewConnection">
-        + 新建连接
-      </button>
+      <n-button v-if="!showForm" type="primary" @click="handleNewConnection">
+        <template #icon>
+          <n-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></n-icon>
+        </template>
+        新建连接
+      </n-button>
     </div>
 
-    <div v-if="connectionStore.error" class="error-message">
+    <n-alert v-if="connectionStore.error" type="error" closable @close="connectionStore.clearError()">
       {{ connectionStore.error }}
-      <button class="btn-close" @click="connectionStore.clearError()">×</button>
-    </div>
+    </n-alert>
 
     <div class="view-content">
       <div v-if="showForm" class="form-section">
@@ -100,7 +119,6 @@ async function handleConnect(id: string) {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
   margin: 0;
 }
 
@@ -123,48 +141,5 @@ async function handleConnect(id: string) {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.error-message {
-  background-color: #ffebee;
-  color: #c62828;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #c62828;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #45a049;
 }
 </style>

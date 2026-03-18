@@ -93,30 +93,23 @@ async function refreshAll() {
   <div class="query-view">
     <div class="view-header">
       <h2 class="view-title">查询执行</h2>
-      <div class="header-actions">
-        <button class="btn btn-secondary" @click="showSidebar = !showSidebar">
-          {{ showSidebar ? '隐藏' : '显示' }}侧边栏
-        </button>
-      </div>
+      <n-button @click="showSidebar = !showSidebar">
+        {{ showSidebar ? '隐藏' : '显示' }}侧边栏
+      </n-button>
     </div>
 
     <div class="view-content">
       <div v-if="showSidebar" class="sidebar">
-        <div class="sidebar-section">
-          <div class="section-header">
-            <h3 class="section-title">数据库对象</h3>
-            <button class="btn btn-sm" @click="refreshAll" :disabled="!connectionStore.isConnected">
+        <n-card title="数据库对象" size="small">
+          <template #header-extra>
+            <n-button size="small" :disabled="!connectionStore.isConnected" @click="refreshAll">
               刷新
-            </button>
-          </div>
+            </n-button>
+          </template>
 
-          <div v-if="!connectionStore.isConnected" class="sidebar-message">
-            请先连接到数据库
-          </div>
+          <n-empty v-if="!connectionStore.isConnected" description="请先连接到数据库" />
 
-          <div v-else-if="queryStore.loadingDatabases" class="sidebar-message">
-            加载中...
-          </div>
+          <n-spin v-else-if="queryStore.loadingDatabases" description="加载中..." />
 
           <div v-else class="tree-view">
             <!-- Database List -->
@@ -188,15 +181,11 @@ async function refreshAll() {
               </div>
             </div>
 
-            <div v-if="queryStore.databases.length === 0" class="sidebar-message">
-              暂无数据
-            </div>
+            <n-empty v-if="queryStore.databases.length === 0" description="暂无数据" />
           </div>
-        </div>
+        </n-card>
 
-        <div class="sidebar-section">
-          <QueryHistory />
-        </div>
+        <QueryHistory />
       </div>
 
       <div class="main-panel">
@@ -206,22 +195,17 @@ async function refreshAll() {
         </div>
 
         <!-- 空状态提示 -->
-        <div v-else class="empty-state">
-          <div class="empty-content">
-            <div class="empty-icon">📋</div>
-            <p>点击左侧表名查看详情</p>
-          </div>
-        </div>
+        <n-empty v-else description="点击左侧表名查看详情" class="empty-panel">
+          <template #icon>
+            <span style="font-size: 48px">📋</span>
+          </template>
+        </n-empty>
 
         <!-- SQL切换按钮 -->
         <div class="sql-toggle-section">
-          <button
-            class="btn"
-            :class="showSqlPanel ? 'btn-secondary' : 'btn-primary'"
-            @click="showSqlPanel = !showSqlPanel"
-          >
+          <n-button :type="showSqlPanel ? 'default' : 'primary'" @click="showSqlPanel = !showSqlPanel">
             {{ showSqlPanel ? '隐藏SQL编辑器' : 'SQL语句' }}
-          </button>
+          </n-button>
         </div>
 
         <!-- SQL编辑器和结果（可折叠） -->
@@ -253,13 +237,7 @@ async function refreshAll() {
 .view-title {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
   margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
 }
 
 .view-content {
@@ -272,36 +250,6 @@ async function refreshAll() {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.sidebar-section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
-}
-
-.section-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.sidebar-message {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  font-size: 14px;
 }
 
 .tree-view {
@@ -322,21 +270,22 @@ async function refreshAll() {
   cursor: pointer;
   transition: background-color 0.2s;
   user-select: none;
+  border-radius: 4px;
 }
 
 .tree-label:hover {
-  background-color: #f5f5f5;
+  background-color: var(--n-merged-border-color, #f5f5f5);
 }
 
 .tree-label.active {
-  background-color: #e3f2fd;
-  color: #1976D2;
+  background-color: rgba(102, 126, 234, 0.1);
+  color: #667eea;
 }
 
 .tree-label-database {
   font-weight: 600;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
+  border-bottom: 1px solid var(--n-border-color, #eee);
+  margin-bottom: 4px;
 }
 
 .tree-icon {
@@ -346,7 +295,6 @@ async function refreshAll() {
 .tree-text {
   flex: 1;
   font-size: 13px;
-  color: #333;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -354,7 +302,6 @@ async function refreshAll() {
 }
 
 .tree-label.active .tree-text {
-  color: #1976D2;
   font-weight: 500;
 }
 
@@ -381,7 +328,7 @@ async function refreshAll() {
 }
 
 .tree-item {
-  border-left: 2px solid #eee;
+  border-left: 2px solid var(--n-border-color, #eee);
 }
 
 .tree-loading {
@@ -404,10 +351,11 @@ async function refreshAll() {
   padding: 8px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
+  border-radius: 4px;
 }
 
 .table-item:hover {
-  background-color: #f5f5f5;
+  background-color: var(--n-merged-border-color, #f5f5f5);
 }
 
 .table-icon {
@@ -416,7 +364,6 @@ async function refreshAll() {
 
 .table-name {
   font-size: 13px;
-  color: #333;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -443,27 +390,9 @@ async function refreshAll() {
 }
 
 /* 空状态 */
-.empty-state {
+.empty-panel {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   min-height: 300px;
-}
-
-.empty-content {
-  text-align: center;
-  color: #999;
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.empty-content p {
-  font-size: 14px;
-  margin: 0;
 }
 
 /* SQL切换按钮区域 */
@@ -471,8 +400,8 @@ async function refreshAll() {
   display: flex;
   justify-content: center;
   padding: 8px 0;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+  border-top: 1px solid var(--n-border-color, #eee);
+  border-bottom: 1px solid var(--n-border-color, #eee);
 }
 
 /* SQL面板 */
@@ -501,49 +430,6 @@ async function refreshAll() {
 .result-section {
   flex: 1;
   min-height: 300px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #e0e0e0;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.btn-secondary {
-  background-color: #2196F3;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #1976D2;
 }
 
 @media (max-width: 1024px) {

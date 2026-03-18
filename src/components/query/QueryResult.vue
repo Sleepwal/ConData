@@ -18,42 +18,40 @@ function formatValue(value: any): string {
 </script>
 
 <template>
-  <div class="query-result">
-    <div class="result-header">
-      <h3 class="result-title">查询结果</h3>
-      <div v-if="hasResult && queryStore.queryResult?.success" class="result-stats">
-        <span class="stat">
-          行数: <strong>{{ queryStore.queryResult?.row_count }}</strong>
-        </span>
-        <span class="stat">
-          耗时: <strong>{{ queryStore.queryResult?.execution_time_ms }}ms</strong>
-        </span>
-      </div>
-    </div>
+  <n-card class="query-result" title="查询结果">
+    <template #header-extra>
+      <n-space v-if="hasResult && queryStore.queryResult?.success">
+        <n-tag type="info">{{ queryStore.queryResult?.row_count }} 行</n-tag>
+        <n-tag>{{ queryStore.queryResult?.execution_time_ms }}ms</n-tag>
+      </n-space>
+    </template>
 
-    <div v-if="queryStore.loading" class="loading">
-      执行中...
-    </div>
+    <n-spin v-if="queryStore.loading" description="执行中..." />
 
-    <div v-else-if="queryStore.error" class="error-message">
+    <n-alert v-else-if="queryStore.error" type="error" :show-icon="false">
       {{ queryStore.error }}
-    </div>
+    </n-alert>
 
-    <div v-else-if="hasResult && !queryStore.queryResult?.success" class="error-message">
+    <n-alert
+      v-else-if="hasResult && !queryStore.queryResult?.success"
+      type="error"
+      :show-icon="false"
+    >
       {{ queryStore.queryResult?.message || '查询执行失败' }}
-    </div>
+    </n-alert>
 
-    <div v-else-if="hasResult && queryStore.queryResult?.success" class="result-container">
-      <div v-if="queryStore.queryResult?.columns.length === 0" class="empty-result">
-        {{ queryStore.queryResult?.message || '查询成功，无返回数据' }}
-      </div>
-      
+    <template v-else-if="hasResult && queryStore.queryResult?.success">
+      <n-empty
+        v-if="queryStore.queryResult?.columns.length === 0"
+        :description="queryStore.queryResult?.message || '查询成功，无返回数据'"
+      />
+
       <div v-else class="table-wrapper">
         <table class="result-table">
           <thead>
             <tr>
-              <th 
-                v-for="column in queryStore.queryResult?.columns" 
+              <th
+                v-for="column in queryStore.queryResult?.columns"
                 :key="column.name"
                 :title="column.data_type"
               >
@@ -63,8 +61,8 @@ function formatValue(value: any): string {
           </thead>
           <tbody>
             <tr v-for="(row, rowIndex) in queryStore.queryResult?.rows" :key="rowIndex">
-              <td 
-                v-for="(cell, cellIndex) in row" 
+              <td
+                v-for="(cell, cellIndex) in row"
                 :key="cellIndex"
                 :class="{ 'null-value': cell === null }"
               >
@@ -74,81 +72,20 @@ function formatValue(value: any): string {
           </tbody>
         </table>
       </div>
-    </div>
+    </template>
 
-    <div v-else class="no-result">
-      <p>执行查询以查看结果</p>
-    </div>
-  </div>
+    <n-empty v-else description="执行查询以查看结果" />
+  </n-card>
 </template>
 
 <style scoped>
 .query-result {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.result-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
-}
-
-.result-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.result-stats {
-  display: flex;
-  gap: 16px;
-  font-size: 14px;
-  color: #666;
-}
-
-.stat strong {
-  color: #333;
-}
-
-.loading {
-  padding: 40px;
-  text-align: center;
-  color: #666;
-}
-
-.error-message {
-  padding: 20px;
-  background-color: #ffebee;
-  color: #c62828;
-  font-size: 14px;
-}
-
-.no-result {
-  padding: 60px 20px;
-  text-align: center;
-  color: #999;
-}
-
-.empty-result {
-  padding: 40px 20px;
-  text-align: center;
-  color: #666;
-  font-size: 14px;
-}
-
-.result-container {
+.table-wrapper {
   overflow: auto;
   max-height: 500px;
-}
-
-.table-wrapper {
   min-width: 100%;
 }
 
@@ -162,21 +99,21 @@ function formatValue(value: any): string {
 .result-table td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--n-border-color);
   white-space: nowrap;
 }
 
 .result-table th {
-  background-color: #f5f5f5;
+  background-color: var(--n-th-color);
   font-weight: 600;
-  color: #333;
+  color: var(--n-text-color);
   position: sticky;
   top: 0;
   z-index: 1;
 }
 
 .result-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--n-td-color-hover);
 }
 
 .null-value {

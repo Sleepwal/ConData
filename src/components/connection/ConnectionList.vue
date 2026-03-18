@@ -24,229 +24,118 @@ function isActive(connectionId: string) {
 </script>
 
 <template>
-  <div class="connection-list">
-    <h3 class="list-title">已保存的连接</h3>
+  <n-card title="已保存的连接" class="connection-list">
+    <n-empty v-if="connections.length === 0" description="暂无保存的连接">
+      <template #extra>
+        <n-text depth="3">点击上方"新建连接"按钮添加</n-text>
+      </template>
+    </n-empty>
 
-    <div v-if="connections.length === 0" class="empty-state">
-      <p>暂无保存的连接</p>
-      <p class="hint">点击上方"新建连接"按钮添加</p>
-    </div>
-
-    <div v-else class="connections">
-      <div
+    <n-space v-else vertical :size="12">
+      <n-card
         v-for="connection in connections"
         :key="connection.id"
-        class="connection-item"
-        :class="{ active: isActive(connection.id) }"
+        size="small"
+        :class="['connection-item', { active: isActive(connection.id) }]"
+        hoverable
       >
-        <div class="connection-info">
-          <div class="connection-header">
-            <h4 class="connection-name">{{ connection.name }}</h4>
-            <span
-              v-if="getStatus(connection.id)?.connected"
-              class="status-badge connected"
-            >
-              已连接
-            </span>
-            <span v-else class="status-badge disconnected">
-              未连接
-            </span>
-          </div>
-          <div class="connection-details">
-            <span>{{ connection.host }}:{{ connection.port }}</span>
-            <span class="separator">|</span>
-            <span>{{ connection.database }}</span>
-            <span class="separator">|</span>
-            <span>{{ connection.username }}</span>
-          </div>
-        </div>
+        <n-space justify="space-between" align="center" style="width: 100%">
+          <n-space vertical :size="4">
+            <n-space align="center" :size="12">
+              <n-text strong class="connection-name">{{ connection.name }}</n-text>
+              <n-tag
+                v-if="getStatus(connection.id)?.connected"
+                size="small"
+                type="success"
+              >
+                已连接
+              </n-tag>
+              <n-tag v-else size="small" type="default">
+                未连接
+              </n-tag>
+            </n-space>
+            <n-text depth="3" class="connection-details">
+              {{ connection.host }}:{{ connection.port }} | {{ connection.database }} | {{ connection.username }}
+            </n-text>
+          </n-space>
 
-        <div class="connection-actions">
-          <button
-            v-if="!getStatus(connection.id)?.connected"
-            class="btn btn-sm btn-primary"
-            @click="emit('connect', connection.id)"
-            :disabled="connectionStore.loading"
-          >
-            连接
-          </button>
-          <button
-            v-else
-            class="btn btn-sm btn-secondary"
-            @click="connectionStore.disconnect(connection.id)"
-            :disabled="connectionStore.loading"
-          >
-            断开
-          </button>
-          <button
-            class="btn btn-sm"
-            @click="emit('edit', connection)"
-            :disabled="connectionStore.loading"
-          >
-            编辑
-          </button>
-          <button
-            class="btn btn-sm btn-danger"
-            @click="emit('delete', connection.id)"
-            :disabled="connectionStore.loading"
-          >
-            删除
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+          <n-space>
+            <n-button
+              v-if="!getStatus(connection.id)?.connected"
+              size="small"
+              type="primary"
+              :loading="connectionStore.loading"
+              @click="emit('connect', connection.id)"
+            >
+              连接
+            </n-button>
+            <n-button
+              v-else
+              size="small"
+              type="warning"
+              :loading="connectionStore.loading"
+              @click="connectionStore.disconnect(connection.id)"
+            >
+              断开
+            </n-button>
+            <n-button
+              size="small"
+              :loading="connectionStore.loading"
+              @click="emit('edit', connection)"
+            >
+              编辑
+            </n-button>
+            <n-button
+              size="small"
+              type="error"
+              ghost
+              :loading="connectionStore.loading"
+              @click="emit('delete', connection.id)"
+            >
+              删除
+            </n-button>
+          </n-space>
+        </n-space>
+      </n-card>
+    </n-space>
+  </n-card>
 </template>
 
 <style scoped>
 .connection-list {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease;
 }
 
-.list-title {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-}
-
-.empty-state .hint {
-  font-size: 14px;
-  margin-top: 8px;
-}
-
-.connections {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .connection-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  border: 1px solid #eee;
-  border-radius: 8px;
   transition: all 0.2s;
+  border-left: 3px solid transparent;
 }
 
 .connection-item:hover {
-  border-color: #ddd;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-left-color: #667eea;
 }
 
 .connection-item.active {
-  border-color: #4CAF50;
-  background-color: #f8fff8;
-}
-
-.connection-info {
-  flex: 1;
-}
-
-.connection-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  border-left-color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.05);
 }
 
 .connection-name {
-  margin: 0;
   font-size: 16px;
-  font-weight: 600;
-  color: #333;
 }
 
 .connection-details {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: 13px;
-  color: #666;
-}
-
-.separator {
-  color: #ccc;
-}
-
-.connection-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
-  background-color: #f5f5f5;
-  color: #333;
-}
-
-.btn:hover:not(:disabled) {
-  background-color: #e0e0e0;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.btn-secondary {
-  background-color: #2196F3;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #1976D2;
-}
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background-color: #d32f2f;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-badge.connected {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.status-badge.disconnected {
-  background-color: #ffebee;
-  color: #c62828;
 }
 </style>
