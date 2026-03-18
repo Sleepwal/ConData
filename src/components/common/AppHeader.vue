@@ -1,9 +1,52 @@
 <script setup lang="ts">
+import { h, computed } from 'vue'
 import { useConnectionStore } from '../../stores/connection'
 import { useThemeStore } from '../../stores/theme'
+import { useFeedback } from '../../composables/useFeedback'
 
 const connectionStore = useConnectionStore()
 const themeStore = useThemeStore()
+const { msg } = useFeedback()
+
+// 生成下拉菜单选项
+const connectionOptions = computed(() => {
+  return connectionStore.connections.map(conn => {
+    const status = connectionStore.connectionStatuses.get(conn.id)
+    const isConnected = status?.connected || false
+
+    return {
+      key: conn.id,
+      label: conn.name,
+      icon: () => h('span', {
+        class: ['dropdown-status-dot', { connected: isConnected }]
+      }),
+      description: `${conn.host}:${conn.port}`,
+      disabled: connectionStore.activeConnectionId === conn.id && isConnected
+    }
+  })
+})
+
+// 处理连接选择
+async function handleConnectionSelect(connectionId: string) {
+  const conn = connectionStore.connections.find(c => c.id === connectionId)
+  if (!conn) return
+
+  const status = connectionStore.connectionStatuses.get(connectionId)
+  const isConnected = status?.connected || false
+
+  if (!isConnected) {
+    // 未连接，先连接
+    try {
+      await connectionStore.connect(connectionId)
+      msg.success(`已连接到 ${conn.name}`)
+    } catch (err) {
+      msg.error(`连接失败: ${err instanceof Error ? err.message : '未知错误'}`)
+    }
+  } else {
+    // 已连接，切换活动连接
+    connectionStore.setActiveConnection(connectionId)
+  }
+}
 </script>
 
 <template>
@@ -56,16 +99,64 @@ const themeStore = useThemeStore()
         </template>
       </n-button>
 
-      <div v-if="connectionStore.activeConnection" class="connection-info">
-        <span class="connection-name">{{ connectionStore.activeConnection.name }}</span>
-        <span
-          class="status-dot"
-          :class="{ connected: connectionStore.isConnected }"
-        ></span>
-      </div>
-      <div v-else class="no-connection">
-        未选择连接
-      </div>
+      <!-- 连接选择下拉菜单 -->
+      <n-dropdown
+        :options="connectionOptions"
+        @select="handleConnectionSelect"
+        trigger="click"
+        placement="bottom-end"
+      >
+        <div>
+          <n-button
+            v-if="connectionStore.activeConnection"
+            class="connection-trigger"
+            :loading="connectionStore.loading"
+            secondary
+            type="primary"
+          >
+            <template #icon>
+              <span
+                class="status-dot"
+                :class="{ connected: connectionStore.isConnected }"
+              ></span>
+            </template>
+            {{ connectionStore.activeConnection.name }}
+            <template #suffix>
+              <n-icon size="14">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </n-icon>
+            </template>
+          </n-button>
+          <n-button
+            v-else
+            class="connection-trigger"
+            :loading="connectionStore.loading"
+            secondary
+            type="primary"
+          >
+            <template #icon>
+              <n-icon size="16">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                  <line x1="12" y1="20" x2="12.01" y2="20"/>
+                </svg>
+              </n-icon>
+            </template>
+            选择连接
+            <template #suffix>
+              <n-icon size="14">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </n-icon>
+            </template>
+          </n-button>
+        </div>
+      </n-dropdown>
     </div>
   </header>
 </template>
@@ -164,5 +255,32 @@ const themeStore = useThemeStore()
 .no-connection {
   font-size: 14px;
   opacity: 0.7;
+}
+
+.connection-trigger {
+  min-width: 120px;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  color: #333 !important;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.connection-trigger:hover {
+  background-color: white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 下拉菜单中的状态圆点 */
+.dropdown-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ccc;
+  margin-right: 8px;
+}
+
+.dropdown-status-dot.connected {
+  background-color: #18a058;
 }
 </style>

@@ -61,13 +61,16 @@ function clearHistory() {
           @click="useQuery(item.sql)"
         >
           <template #header>
-            <n-ellipsis :tooltip="{ width: '300px' }" style="max-width: 100%">
-              <code class="history-sql">{{ item.sql }}</code>
-            </n-ellipsis>
+            <n-tooltip placement="top" :style="{ maxWidth: '300px' }">
+              <template #trigger>
+                <code class="history-sql sql-ellipsis">{{ item.sql }}</code>
+              </template>
+              {{ item.sql }}
+            </n-tooltip>
           </template>
 
           <n-space justify="space-between" size="small">
-            <n-text depth="3" class="history-time">{{ formatTime(item.executed_at) }}</n-text>
+            <span class="history-time">{{ formatTime(item.executed_at) }}</span>
             <n-space size="small">
               <n-tag size="small" :type="item.success ? 'success' : 'error'">{{ item.row_count }} 行</n-tag>
               <n-tag size="small" type="info">{{ item.execution_time_ms }}ms</n-tag>
@@ -116,5 +119,13 @@ function clearHistory() {
 
 .history-time {
   font-size: 12px;
+}
+
+.sql-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 </style>

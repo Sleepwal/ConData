@@ -27,7 +27,7 @@ function isActive(connectionId: string) {
   <n-card title="已保存的连接" class="connection-list">
     <n-empty v-if="connections.length === 0" description="暂无保存的连接">
       <template #extra>
-        <n-text depth="3">点击上方"新建连接"按钮添加</n-text>
+        <span class="text-secondary">点击上方"新建连接"按钮添加</span>
       </template>
     </n-empty>
 
@@ -42,7 +42,12 @@ function isActive(connectionId: string) {
         <n-space justify="space-between" align="center" style="width: 100%">
           <n-space vertical :size="4">
             <n-space align="center" :size="12">
-              <n-text strong class="connection-name">{{ connection.name }}</n-text>
+              <!-- 状态圆点 -->
+              <span
+                class="status-dot"
+                :class="{ connected: getStatus(connection.id)?.connected }"
+              />
+              <strong class="connection-name">{{ connection.name }}</strong>
               <n-tag
                 v-if="getStatus(connection.id)?.connected"
                 size="small"
@@ -54,9 +59,9 @@ function isActive(connectionId: string) {
                 未连接
               </n-tag>
             </n-space>
-            <n-text depth="3" class="connection-details">
+            <span class="connection-details text-secondary">
               {{ connection.host }}:{{ connection.port }} | {{ connection.database }} | {{ connection.username }}
-            </n-text>
+            </span>
           </n-space>
 
           <n-space>
@@ -137,5 +142,21 @@ function isActive(connectionId: string) {
 
 .connection-details {
   font-size: 13px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ccc;
+}
+
+.status-dot.connected {
+  background-color: #18a058;
+}
+
+.text-secondary {
+  color: var(--n-text-color-disabled, #999);
 }
 </style>

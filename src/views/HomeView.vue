@@ -38,8 +38,8 @@ function goToQuery() {
           <span class="card-icon">🔌</span>
           <div class="card-content">
             <n-h3 class="card-title">连接管理</n-h3>
-            <n-text class="card-value" strong>{{ connectionCount }} 个连接</n-text>
-            <n-text depth="3" class="card-description">管理您的数据库连接配置</n-text>
+            <span class="card-value">{{ connectionCount }} 个连接</span>
+            <span class="card-description text-secondary">管理您的数据库连接配置</span>
           </div>
         </n-space>
       </n-card>
@@ -49,8 +49,8 @@ function goToQuery() {
           <span class="card-icon">🔍</span>
           <div class="card-content">
             <n-h3 class="card-title">查询执行</n-h3>
-            <n-text class="card-value" strong>SQL 编辑器</n-text>
-            <n-text depth="3" class="card-description">执行 SQL 查询并查看结果</n-text>
+            <span class="card-value">SQL 编辑器</span>
+            <span class="card-description text-secondary">执行 SQL 查询并查看结果</span>
           </div>
         </n-space>
       </n-card>
@@ -62,19 +62,19 @@ function goToQuery() {
           <div v-if="activeConnection" class="connection-details">
             <n-space vertical size="small">
               <n-space justify="space-between">
-                <n-text depth="3">名称:</n-text>
-                <n-text strong>{{ activeConnection.name }}</n-text>
+                <span class="text-secondary">名称:</span>
+                <strong>{{ activeConnection.name }}</strong>
               </n-space>
               <n-space justify="space-between">
-                <n-text depth="3">主机:</n-text>
-                <n-text strong>{{ activeConnection.host }}:{{ activeConnection.port }}</n-text>
+                <span class="text-secondary">主机:</span>
+                <strong>{{ activeConnection.host }}:{{ activeConnection.port }}</strong>
               </n-space>
               <n-space justify="space-between">
-                <n-text depth="3">数据库:</n-text>
-                <n-text strong>{{ activeConnection.database }}</n-text>
+                <span class="text-secondary">数据库:</span>
+                <strong>{{ activeConnection.database }}</strong>
               </n-space>
               <n-space justify="space-between">
-                <n-text depth="3">状态:</n-text>
+                <span class="text-secondary">状态:</span>
                 <n-tag :type="connectionStore.isConnected ? 'success' : 'default'" size="small">
                   {{ connectionStore.isConnected ? '已连接' : '未连接' }}
                 </n-tag>
@@ -99,11 +99,14 @@ function goToQuery() {
               :class="['query-item', { failed: !query.success }]"
               hoverable
             >
-              <n-ellipsis style="max-width: 100%">
-                <code class="query-sql">{{ query.sql }}</code>
-              </n-ellipsis>
+              <n-tooltip placement="top" :style="{ maxWidth: '400px' }">
+                <template #trigger>
+                  <code class="query-sql sql-ellipsis">{{ query.sql }}</code>
+                </template>
+                {{ query.sql }}
+              </n-tooltip>
               <n-space justify="space-between" size="small" style="margin-top: 8px">
-                <n-text depth="3" class="query-time">{{ new Date(query.executed_at).toLocaleTimeString() }}</n-text>
+                <span class="query-time text-secondary">{{ new Date(query.executed_at).toLocaleTimeString() }}</span>
                 <n-space size="small">
                   <n-tag size="small" :type="query.success ? 'success' : 'error'">{{ query.row_count }} 行</n-tag>
                   <n-tag size="small">{{ query.execution_time_ms }}ms</n-tag>
@@ -205,7 +208,19 @@ function goToQuery() {
   font-size: 13px;
 }
 
+.sql-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .query-time {
   font-size: 12px;
+}
+
+.text-secondary {
+  color: var(--n-text-color-disabled, #999);
 }
 </style>
