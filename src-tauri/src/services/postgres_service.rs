@@ -1,6 +1,6 @@
 use crate::db::pool::ConnectionPool;
 use crate::error::{AppError, Result};
-use crate::models::query::{ColumnInfo, ColumnSchema, QueryResult, TableInfo, TableSchema};
+use crate::models::query::{ColumnInfo, ColumnSchema, DatabaseInfo, QueryResult, SchemaInfo, TableInfo, TableSchema};
 use serde_json::Value;
 use std::time::Instant;
 
@@ -224,5 +224,76 @@ impl PostgresService {
         };
 
         Ok(value)
+    }
+
+    pub async fn get_databases(connection_id: &str) -> Result<Vec<DatabaseInfo>> {
+        let pool = ConnectionPool::get_pool(connection_id)?;
+        let client = pool
+            .get()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = r#"
+            SELECT 
+                datname as name,
+                pg_get_userbyid(datdba) as owner,
+                pg_encoding_to_char(encoding) as encoding,
+                datcollate as collate
+            FROM pg_database
+            WHERE datname NOT IN ('template0', 'template1', 'postgres')
+              AND datistemplate = false
+            ORDER BY datname
+        "#;
+
+        let rows = client
+            .query(sql, &[])
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get databases: {}", e)))?;
+
+        let databases: Vec<DatabaseInfo> = rows
+            .iter()
+            .map(|row| DatabaseInfo {
+                name: row.get(0),
+                owner: row.get(1),
+                encoding: row.get(2),
+                collate: row.get(3),
+            })
+            .collect();
+
+        Ok(databases)
+    }
+
+    pub async fn get_schemas(connection_id: &str) -> Result<Vec<SchemaInfo>> {
+        let pool = ConnectionPool::get_pool(connection_id)?;
+        let client = pool
+            .get()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = r#"
+            SELECT 
+                schema_name as name,
+                schema_owner as owner
+            FROM information_schema.schemata
+            WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1')
+              AND schema_name NOT LIKE 'pg_temp_%'
+              AND schema_name NOT LIKE 'pg_toast_temp_%'
+            ORDER BY schema_name
+        "#;
+
+        let rows = client
+            .query(sql, &[])
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get schemas: {}", e)))?;
+
+        let schemas: Vec<SchemaInfo> = rows
+            .iter()
+            .map(|row| SchemaInfo {
+                name: row.get(0),
+                owner: row.get(1),
+            })
+            .collect();
+
+        Ok(schemas)
     }
 }

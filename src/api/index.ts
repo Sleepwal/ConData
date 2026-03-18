@@ -6,7 +6,9 @@ import type {
   QueryRequest,
   QueryResult,
   TableInfo,
-  TableSchema
+  TableSchema,
+  DatabaseInfo,
+  SchemaInfo
 } from '../types'
 
 export const connectionApi = {
@@ -43,5 +45,11 @@ export const queryApi = {
     invoke('get_tables', { connectionId }),
 
   getTableSchema: (connectionId: string, schema: string, tableName: string): Promise<TableSchema> =>
-    invoke('get_table_schema', { connectionId, schema, tableName })
+    invoke('get_table_schema', { connectionId, schema, tableName }),
+
+  getDatabases: (connectionId: string): Promise<DatabaseInfo[]> =>
+    invoke('get_databases', { connectionId }),
+
+  getSchemas: (connectionId: string): Promise<SchemaInfo[]> =>
+    invoke('get_schemas', { connectionId })
 }

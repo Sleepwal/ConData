@@ -74,6 +74,18 @@ export interface TableSchema {
   columns: ColumnSchema[]
 }
 
+export interface DatabaseInfo {
+  name: string
+  owner?: string
+  encoding?: string
+  collate?: string
+}
+
+export interface SchemaInfo {
+  name: string
+  owner?: string
+}
+
 export interface QueryHistoryItem {
   id: string
   connection_id: string

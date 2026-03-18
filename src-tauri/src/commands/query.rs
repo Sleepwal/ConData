@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::models::query::{QueryRequest, QueryResult, TableInfo, TableSchema};
+use crate::models::query::{DatabaseInfo, QueryRequest, QueryResult, SchemaInfo, TableInfo, TableSchema};
 use crate::services::postgres_service::PostgresService;
 
 #[tauri::command]
@@ -20,4 +20,14 @@ pub async fn get_table_schema(
     table_name: String,
 ) -> Result<TableSchema> {
     PostgresService::get_table_schema(&connection_id, &schema, &table_name).await
+}
+
+#[tauri::command]
+pub async fn get_databases(connection_id: String) -> Result<Vec<DatabaseInfo>> {
+    PostgresService::get_databases(&connection_id).await
+}
+
+#[tauri::command]
+pub async fn get_schemas(connection_id: String) -> Result<Vec<SchemaInfo>> {
+    PostgresService::get_schemas(&connection_id).await
 }

@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { QueryResult, QueryHistoryItem, QueryRequest, TableInfo, TableSchema } from '../types'
+import type { QueryResult, QueryHistoryItem, QueryRequest, TableInfo, TableSchema, DatabaseInfo, SchemaInfo } from '../types'
 import { queryApi } from '../api'
 
 export const useQueryStore = defineStore('query', () => {
   const queryResult = ref<QueryResult | null>(null)
   const queryHistory = ref<QueryHistoryItem[]>([])
   const tables = ref<TableInfo[]>([])
+  const databases = ref<DatabaseInfo[]>([])
+  const schemas = ref<SchemaInfo[]>([])
   const currentSql = ref('')
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -63,6 +65,36 @@ export const useQueryStore = defineStore('query', () => {
     }
   }
 
+  async function loadDatabases(connectionId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      databases.value = await queryApi.getDatabases(connectionId)
+      return databases.value
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '加载数据库列表失败'
+      console.error('Failed to load databases:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadSchemas(connectionId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      schemas.value = await queryApi.getSchemas(connectionId)
+      return schemas.value
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '加载模式列表失败'
+      console.error('Failed to load schemas:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function loadTables(connectionId: string) {
     loading.value = true
     error.value = null
@@ -108,12 +140,16 @@ export const useQueryStore = defineStore('query', () => {
     queryResult,
     queryHistory,
     tables,
+    databases,
+    schemas,
     currentSql,
     loading,
     error,
     hasResult,
     hasError,
     executeQuery,
+    loadDatabases,
+    loadSchemas,
     loadTables,
     getTableSchema,
     setCurrentSql,

@@ -6,6 +6,36 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// 数据库信息结构体
+///
+/// 描述 PostgreSQL 服务器上的一个数据库的基本信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseInfo {
+    /// 数据库名称
+    pub name: String,
+    
+    /// 数据库所有者
+    pub owner: Option<String>,
+    
+    /// 字符集编码
+    pub encoding: Option<String>,
+    
+    /// 排序规则
+    pub collate: Option<String>,
+}
+
+/// 模式信息结构体
+///
+/// 描述数据库中的一个模式（SCHEMA）的基本信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaInfo {
+    /// 模式名称
+    pub name: String,
+    
+    /// 模式所有者
+    pub owner: Option<String>,
+}
+
 /// 查询请求结构体
 ///
 /// 用于从前端传递 SQL 查询请求到后端执行
