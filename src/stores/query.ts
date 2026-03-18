@@ -25,6 +25,7 @@ export const useQueryStore = defineStore('query', () => {
   const schemaTables = ref<Map<string, TableInfo[]>>(new Map())
   const selectedTable = ref<TableSchema | null>(null)
   const showTableDetail = ref(false)
+  const tableKey = ref(0) // Used to notify TableDetail to reset data when switching tables
 
   const hasResult = computed(() => queryResult.value !== null)
   const hasError = computed(() => error.value !== null)
@@ -191,6 +192,7 @@ export const useQueryStore = defineStore('query', () => {
       const schemaDetail = await queryApi.getTableSchema(effectiveId, schema, tableName)
       selectedTable.value = schemaDetail
       showTableDetail.value = true
+      tableKey.value++ // Increment key to notify TableDetail to reset data
     } catch (err) {
       console.error('Failed to load table detail:', err)
     }
@@ -260,6 +262,7 @@ export const useQueryStore = defineStore('query', () => {
     schemaTables,
     selectedTable,
     showTableDetail,
+    tableKey,
     // Original methods
     executeQuery,
     loadDatabases,

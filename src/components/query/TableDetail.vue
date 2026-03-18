@@ -1,20 +1,64 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+import { NTabs, NTabPane, NButton, NSpin, NEmpty } from 'naive-ui'
 import { useQueryStore } from '../../stores/query'
+import { useConnectionStore } from '../../stores/connection'
+import type { QueryResult } from '../../types'
 
 const queryStore = useQueryStore()
+const connectionStore = useConnectionStore()
 
-function generateSelectSql() {
+const activeTab = ref<'structure' | 'data'>('structure')
+const tableData = ref<QueryResult | null>(null)
+const loadingData = ref(false)
+const dataError = ref<string | null>(null)
+
+// Reset data when switching to another table
+watch(() => queryStore.tableKey, () => {
+  tableData.value = null
+  dataError.value = null
+  activeTab.value = 'structure'
+})
+
+async function queryTableData() {
   if (!queryStore.selectedTable) return
+  if (!connectionStore.activeConnectionId) return
 
-  const { schema, table_name, columns } = queryStore.selectedTable
-  const columnNames = columns.map(c => `"${c.name}"`).join(', ')
-  const sql = `SELECT ${columnNames}\nFROM "${schema}"."${table_name}"\nLIMIT 100;`
+  const { schema, table_name } = queryStore.selectedTable
+  const sql = `SELECT * FROM "${schema}"."${table_name}" LIMIT 1000`
 
-  queryStore.setCurrentSql(sql)
+  loadingData.value = true
+  dataError.value = null
+  activeTab.value = 'data'
+
+  try {
+    const result = await queryStore.executeQuery(
+      connectionStore.activeConnectionId,
+      sql,
+      1000
+    )
+    if (result) {
+      tableData.value = result
+    }
+  } catch (err) {
+    dataError.value = err instanceof Error ? err.message : '查询失败'
+  } finally {
+    loadingData.value = false
+  }
 }
 
 function closeDetail() {
   queryStore.closeTableDetail()
+}
+
+function formatValue(value: any): string {
+  if (value === null || value === undefined) {
+    return 'NULL'
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+  return String(value)
 }
 </script>
 
@@ -29,85 +73,138 @@ function closeDetail() {
         </h3>
       </div>
       <div class="header-actions">
-        <button class="btn btn-primary" @click="generateSelectSql">
-          生成SELECT语句
-        </button>
+        <n-button type="primary" @click="queryTableData">
+          查询表数据
+        </n-button>
         <button class="btn btn-close" @click="closeDetail" title="关闭">
           ✕
         </button>
       </div>
     </div>
 
-    <div class="detail-content">
-      <div class="section">
-        <h4 class="section-title">列信息</h4>
-        <div class="table-container">
-          <table class="columns-table">
-            <thead>
-              <tr>
-                <th class="col-name">列名</th>
-                <th class="col-type">数据类型</th>
-                <th class="col-nullable">可空</th>
-                <th class="col-default">默认值</th>
-                <th class="col-pk">主键</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="column in queryStore.selectedTable?.columns"
-                :key="column.name"
-                :class="{ 'is-pk': column.is_primary_key }"
-              >
-                <td class="col-name">
-                  <span class="column-name">{{ column.name }}</span>
-                </td>
-                <td class="col-type">
-                  <span class="data-type">{{ column.data_type }}</span>
-                </td>
-                <td class="col-nullable">
-                  <span class="nullable-badge" :class="{ 'is-nullable': column.is_nullable }">
-                    {{ column.is_nullable ? '是' : '否' }}
-                  </span>
-                </td>
-                <td class="col-default">
-                  <span class="default-value" :title="column.column_default">
-                    {{ column.column_default || '-' }}
-                  </span>
-                </td>
-                <td class="col-pk">
-                  <span v-if="column.is_primary_key" class="pk-badge" title="主键">
-                    🔑
-                  </span>
-                  <span v-else>-</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <n-tabs v-model:value="activeTab" type="line" animated>
+      <n-tab-pane name="structure" tab="表结构">
+        <div class="tab-content">
+          <div class="section">
+            <h4 class="section-title">列信息</h4>
+            <div class="table-container">
+              <table class="columns-table">
+                <thead>
+                  <tr>
+                    <th class="col-name">列名</th>
+                    <th class="col-type">数据类型</th>
+                    <th class="col-nullable">可空</th>
+                    <th class="col-default">默认值</th>
+                    <th class="col-pk">主键</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="column in queryStore.selectedTable?.columns"
+                    :key="column.name"
+                    :class="{ 'is-pk': column.is_primary_key }"
+                  >
+                    <td class="col-name">
+                      <span class="column-name">{{ column.name }}</span>
+                    </td>
+                    <td class="col-type">
+                      <span class="data-type">{{ column.data_type }}</span>
+                    </td>
+                    <td class="col-nullable">
+                      <span class="nullable-badge" :class="{ 'is-nullable': column.is_nullable }">
+                        {{ column.is_nullable ? '是' : '否' }}
+                      </span>
+                    </td>
+                    <td class="col-default">
+                      <span class="default-value" :title="column.column_default">
+                        {{ column.column_default || '-' }}
+                      </span>
+                    </td>
+                    <td class="col-pk">
+                      <span v-if="column.is_primary_key" class="pk-badge" title="主键">
+                        🔑
+                      </span>
+                      <span v-else>-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div class="section">
-        <h4 class="section-title">统计信息</h4>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">总列数</span>
-            <span class="stat-value">{{ queryStore.selectedTable?.columns.length || 0 }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">主键列</span>
-            <span class="stat-value">
-              {{ queryStore.selectedTable?.columns.filter(c => c.is_primary_key).length || 0 }}
-            </span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">可空列</span>
-            <span class="stat-value">
-              {{ queryStore.selectedTable?.columns.filter(c => c.is_nullable).length || 0 }}
-            </span>
+          <div class="section">
+            <h4 class="section-title">统计信息</h4>
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">总列数</span>
+                <span class="stat-value">{{ queryStore.selectedTable?.columns.length || 0 }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">主键列</span>
+                <span class="stat-value">
+                  {{ queryStore.selectedTable?.columns.filter(c => c.is_primary_key).length || 0 }}
+                </span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">可空列</span>
+                <span class="stat-value">
+                  {{ queryStore.selectedTable?.columns.filter(c => c.is_nullable).length || 0 }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </n-tab-pane>
+
+      <n-tab-pane name="data" tab="表数据">
+        <div class="tab-content">
+          <n-spin v-if="loadingData" description="加载中..." />
+
+          <div v-else-if="dataError" class="error-message">
+            {{ dataError }}
+          </div>
+
+          <div v-else-if="tableData?.success" class="data-result">
+            <div class="result-stats">
+              <span class="stat">
+                行数: <strong>{{ tableData.row_count }}</strong>
+              </span>
+              <span class="stat">
+                耗时: <strong>{{ tableData.execution_time_ms }}ms</strong>
+              </span>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th
+                      v-for="column in tableData.columns"
+                      :key="column.name"
+                      :title="column.data_type"
+                    >
+                      {{ column.name }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, rowIndex) in tableData.rows" :key="rowIndex">
+                    <td
+                      v-for="(cell, cellIndex) in row"
+                      :key="cellIndex"
+                      :class="{ 'null-value': cell === null }"
+                    >
+                      {{ formatValue(cell) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <n-empty v-else description="点击上方「查询表数据」按钮加载数据" />
+        </div>
+      </n-tab-pane>
+    </n-tabs>
   </div>
 </template>
 
@@ -176,15 +273,6 @@ function closeDetail() {
   transition: all 0.2s;
 }
 
-.btn-primary {
-  background-color: #2196F3;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #1976D2;
-}
-
 .btn-close {
   width: 32px;
   height: 32px;
@@ -202,10 +290,8 @@ function closeDetail() {
   color: #333;
 }
 
-.detail-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
+.tab-content {
+  padding: 20px 24px;
 }
 
 .section {
@@ -352,12 +438,72 @@ function closeDetail() {
   color: #333;
 }
 
-@media (max-width: 640px) {
-  .table-detail-panel {
-    max-height: 90vh;
-    margin: 10px;
-  }
+/* 表数据 Tab 样式 */
+.data-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
+.result-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.result-stats .stat strong {
+  color: #333;
+}
+
+.table-wrapper {
+  overflow: auto;
+  max-height: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.null-value {
+  color: #999;
+  font-style: italic;
+}
+
+.error-message {
+  padding: 20px;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
   .detail-header {
     flex-direction: column;
     align-items: flex-start;
