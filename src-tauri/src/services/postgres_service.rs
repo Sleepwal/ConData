@@ -92,9 +92,9 @@ impl PostgresService {
         let tables: Vec<TableInfo> = rows
             .iter()
             .map(|row| TableInfo {
-                schema: row.get(0),
-                name: row.get(1),
-                table_type: row.get(2),
+                schema: row.try_get(0).ok().flatten().unwrap_or_default(),
+                name: row.try_get(1).ok().flatten().unwrap_or_default(),
+                table_type: row.try_get(2).ok().flatten().unwrap_or_default(),
             })
             .collect();
 
