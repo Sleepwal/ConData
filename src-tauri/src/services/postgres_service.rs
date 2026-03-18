@@ -101,6 +101,37 @@ impl PostgresService {
         Ok(tables)
     }
 
+    pub async fn get_tables_by_schema(connection_id: &str, schema: &str) -> Result<Vec<TableInfo>> {
+        let pool = ConnectionPool::get_pool(connection_id)?;
+        let client = pool
+            .get()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get connection: {}", e)))?;
+
+        let sql = r#"
+            SELECT table_schema, table_name, table_type
+            FROM information_schema.tables
+            WHERE table_schema = $1
+            ORDER BY table_name
+        "#;
+
+        let rows = client
+            .query(sql, &[&schema])
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to get tables: {}", e)))?;
+
+        let tables: Vec<TableInfo> = rows
+            .iter()
+            .map(|row| TableInfo {
+                schema: row.try_get(0).ok().flatten().unwrap_or_default(),
+                name: row.try_get(1).ok().flatten().unwrap_or_default(),
+                table_type: row.try_get(2).ok().flatten().unwrap_or_default(),
+            })
+            .collect();
+
+        Ok(tables)
+    }
+
     pub async fn get_table_schema(connection_id: &str, schema: &str, table_name: &str) -> Result<TableSchema> {
         let pool = ConnectionPool::get_pool(connection_id)?;
         let client = pool

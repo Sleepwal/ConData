@@ -44,6 +44,9 @@ export const queryApi = {
   getTables: (connectionId: string): Promise<TableInfo[]> =>
     invoke('get_tables', { connectionId }),
 
+  getTablesBySchema: (connectionId: string, schema: string): Promise<TableInfo[]> =>
+    invoke('get_tables_by_schema', { connectionId, schema }),
+
   getTableSchema: (connectionId: string, schema: string, tableName: string): Promise<TableSchema> =>
     invoke('get_table_schema', { connectionId, schema, tableName }),
 
@@ -51,5 +54,8 @@ export const queryApi = {
     invoke('get_databases', { connectionId }),
 
   getSchemas: (connectionId: string): Promise<SchemaInfo[]> =>
-    invoke('get_schemas', { connectionId })
+    invoke('get_schemas', { connectionId }),
+
+  switchDatabase: (connectionId: string, databaseName: string): Promise<ConnectionStatus> =>
+    invoke('switch_database', { connectionId, databaseName })
 }

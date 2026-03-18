@@ -5,12 +5,13 @@ import { useQueryStore } from '../stores/query'
 import QueryEditor from '../components/query/QueryEditor.vue'
 import QueryResult from '../components/query/QueryResult.vue'
 import QueryHistory from '../components/query/QueryHistory.vue'
+import TableDetail from '../components/query/TableDetail.vue'
 
 const connectionStore = useConnectionStore()
 const queryStore = useQueryStore()
 
 const showSidebar = ref(true)
-const expandedDatabase = ref<string | null>(null)
+const showSqlPanel = ref(false)
 const expandedSchema = ref<string | null>(null)
 
 onMounted(() => {
@@ -19,53 +20,70 @@ onMounted(() => {
   }
 })
 
-watch(() => connectionStore.activeConnectionId, (newId) => {
-  if (newId) {
-    loadDatabaseData(newId)
-  } else {
-    queryStore.databases = []
-    queryStore.schemas = []
-    queryStore.tables = []
+watch(() => connectionStore.activeConnectionId, (newId, oldId) => {
+  if (newId !== oldId) {
+    // Reset state when connection changes
+    queryStore.resetState()
+    expandedSchema.value = null
+
+    if (newId) {
+      loadDatabaseData(newId)
+    } else {
+      queryStore.databases = []
+      queryStore.schemas = []
+      queryStore.tables = []
+    }
   }
 })
 
 async function loadDatabaseData(connectionId: string) {
-  const results = await Promise.allSettled([
-    queryStore.loadDatabases(connectionId),
-    queryStore.loadSchemas(connectionId),
-    queryStore.loadTables(connectionId)
-  ])
-  
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      console.error(`Failed to load data source ${index + 1}:`, result.reason)
-    }
-  })
-}
-
-function toggleDatabase(databaseName: string) {
-  if (expandedDatabase.value === databaseName) {
-    expandedDatabase.value = null
-  } else {
-    expandedDatabase.value = databaseName
+  // Only load databases list initially
+  try {
+    await queryStore.loadDatabases(connectionId)
+  } catch (err) {
+    console.error('Failed to load databases:', err)
   }
 }
 
-function toggleSchema(schemaName: string) {
+// Click database to switch to it
+async function onDatabaseClick(dbName: string) {
+  if (queryStore.currentDatabase === dbName) return
+
+  const baseId = connectionStore.activeConnectionId
+  if (!baseId) return
+
+  try {
+    await queryStore.switchDatabase(baseId, dbName)
+    expandedSchema.value = null
+  } catch (err) {
+    console.error('Failed to switch database:', err)
+  }
+}
+
+// Toggle schema to expand/collapse and load tables
+async function toggleSchema(schemaName: string) {
   if (expandedSchema.value === schemaName) {
     expandedSchema.value = null
-  } else {
-    expandedSchema.value = schemaName
+    return
   }
+
+  expandedSchema.value = schemaName
+
+  const connId = queryStore.getEffectiveConnectionId(connectionStore.activeConnectionId!)
+  await queryStore.loadTablesBySchema(connId, schemaName)
 }
 
-function selectTable(schema: string, tableName: string) {
-  const sql = `SELECT * FROM "${schema}"."${tableName}" LIMIT 100;`
-  queryStore.setCurrentSql(sql)
+// Click table to show detail
+function onTableClick(schema: string, tableName: string) {
+  const connId = queryStore.getEffectiveConnectionId(connectionStore.activeConnectionId!)
+  queryStore.loadTableDetail(connId, schema, tableName)
 }
+
 
 async function refreshAll() {
   if (connectionStore.activeConnectionId) {
+    queryStore.resetState()
+    expandedSchema.value = null
     await loadDatabaseData(connectionStore.activeConnectionId)
   }
 }
@@ -91,75 +109,86 @@ async function refreshAll() {
               刷新
             </button>
           </div>
-          
+
           <div v-if="!connectionStore.isConnected" class="sidebar-message">
             请先连接到数据库
           </div>
-          
-          <div v-else-if="queryStore.loadingDatabases || queryStore.loadingSchemas || queryStore.loadingTables" class="sidebar-message">
+
+          <div v-else-if="queryStore.loadingDatabases" class="sidebar-message">
             加载中...
           </div>
-          
+
           <div v-else class="tree-view">
+            <!-- Database List -->
             <div v-if="queryStore.databases.length > 0" class="tree-level">
-              <div class="tree-label tree-label-database" @click="expandedDatabase = expandedDatabase === null ? '_all' : null">
+              <div class="tree-label tree-label-database" @click="queryStore.currentDatabase = null">
                 <span class="tree-icon">🗄️</span>
                 <span class="tree-text">数据库 ({{ queryStore.databases.length }})</span>
-                <span class="tree-arrow">{{ expandedDatabase === null ? '▶' : '▼' }}</span>
               </div>
-              
-              <div v-if="expandedDatabase !== null" class="tree-children">
+
+              <div class="tree-children">
                 <div
                   v-for="db in queryStore.databases"
                   :key="db.name"
                   class="tree-item"
                 >
-                  <div class="tree-label" @click="toggleDatabase(db.name)">
+                  <div
+                    class="tree-label"
+                    :class="{ active: queryStore.currentDatabase === db.name }"
+                    @click="onDatabaseClick(db.name)"
+                  >
                     <span class="tree-icon">📊</span>
                     <span class="tree-text">{{ db.name }}</span>
                     <span v-if="db.owner" class="tree-owner"> ({{ db.owner }})</span>
+                    <span v-if="queryStore.currentDatabase === db.name" class="current-indicator" title="当前数据库">✓</span>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            <div v-if="queryStore.schemas.length > 0" class="tree-level">
-              <div class="tree-label tree-label-schema" @click="expandedSchema = expandedSchema === null ? '_all' : null">
-                <span class="tree-icon">📁</span>
-                <span class="tree-text">模式 ({{ queryStore.schemas.length }})</span>
-                <span class="tree-arrow">{{ expandedSchema === null ? '▶' : '▼' }}</span>
-              </div>
-              
-              <div v-if="expandedSchema !== null" class="tree-children">
-                <div
-                  v-for="schema in queryStore.schemas"
-                  :key="schema.name"
-                  class="tree-item"
-                >
-                  <div class="tree-label" @click="toggleSchema(schema.name)">
-                    <span class="tree-icon">📂</span>
-                    <span class="tree-text">{{ schema.name }}</span>
-                    <span v-if="schema.owner" class="tree-owner"> ({{ schema.owner }})</span>
-                    <span class="tree-arrow">{{ expandedSchema === schema.name ? '▼' : '▶' }}</span>
-                  </div>
-                  
-                  <div v-if="expandedSchema === schema.name" class="tree-children">
+                  <!-- Schema list for current database -->
+                  <div v-if="queryStore.currentDatabase === db.name" class="tree-children">
+                    <div v-if="queryStore.loadingSchemas" class="tree-loading">
+                      加载模式中...
+                    </div>
                     <div
-                      v-for="table in queryStore.tables.filter(t => t.schema === schema.name)"
-                      :key="`${table.schema}.${table.name}`"
-                      class="table-item"
-                      @click="selectTable(table.schema, table.name)"
+                      v-for="schema in queryStore.schemas"
+                      :key="schema.name"
+                      class="tree-item"
                     >
-                      <span class="table-icon">📋</span>
-                      <span class="table-name">{{ table.name }}</span>
-                      <span v-if="table.table_type !== 'BASE TABLE'" class="table-type"> ({{ table.table_type }})</span>
+                      <div class="tree-label" @click="toggleSchema(schema.name)">
+                        <span class="tree-icon">📁</span>
+                        <span class="tree-text">{{ schema.name }}</span>
+                        <span v-if="schema.owner" class="tree-owner"> ({{ schema.owner }})</span>
+                        <span class="tree-arrow">{{ expandedSchema === schema.name ? '▼' : '▶' }}</span>
+                      </div>
+
+                      <!-- Tables for this schema -->
+                      <div v-if="expandedSchema === schema.name" class="tree-children">
+                        <div v-if="queryStore.loadingTables" class="tree-loading">
+                          加载表格中...
+                        </div>
+                        <div
+                          v-for="table in queryStore.schemaTables.get(schema.name) || []"
+                          :key="`${table.schema}.${table.name}`"
+                          class="table-item"
+                          @click="onTableClick(schema.name, table.name)"
+                        >
+                          <span class="table-icon">📋</span>
+                          <span class="table-name">{{ table.name }}</span>
+                          <span v-if="table.table_type !== 'BASE TABLE'" class="table-type"> ({{ table.table_type }})</span>
+                        </div>
+                        <div v-if="(queryStore.schemaTables.get(schema.name) || []).length === 0 && !queryStore.loadingTables" class="tree-empty">
+                          无表格
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="queryStore.schemas.length === 0 && !queryStore.loadingSchemas" class="tree-empty">
+                      无模式
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div v-if="queryStore.tables.length === 0 && queryStore.databases.length === 0 && queryStore.schemas.length === 0" class="sidebar-message">
+            <div v-if="queryStore.databases.length === 0" class="sidebar-message">
               暂无数据
             </div>
           </div>
@@ -171,11 +200,38 @@ async function refreshAll() {
       </div>
 
       <div class="main-panel">
-        <div class="editor-section">
-          <QueryEditor />
+        <!-- 表详情面板（内嵌） -->
+        <div v-if="queryStore.selectedTable" class="table-detail-section">
+          <TableDetail />
         </div>
-        <div class="result-section">
-          <QueryResult />
+
+        <!-- 空状态提示 -->
+        <div v-else class="empty-state">
+          <div class="empty-content">
+            <div class="empty-icon">📋</div>
+            <p>点击左侧表名查看详情</p>
+          </div>
+        </div>
+
+        <!-- SQL切换按钮 -->
+        <div class="sql-toggle-section">
+          <button
+            class="btn"
+            :class="showSqlPanel ? 'btn-secondary' : 'btn-primary'"
+            @click="showSqlPanel = !showSqlPanel"
+          >
+            {{ showSqlPanel ? '隐藏SQL编辑器' : 'SQL语句' }}
+          </button>
+        </div>
+
+        <!-- SQL编辑器和结果（可折叠） -->
+        <div v-if="showSqlPanel" class="sql-panel">
+          <div class="editor-section">
+            <QueryEditor />
+          </div>
+          <div class="result-section">
+            <QueryResult />
+          </div>
         </div>
       </div>
     </div>
@@ -251,10 +307,11 @@ async function refreshAll() {
 .tree-view {
   max-height: 500px;
   overflow-y: auto;
+  padding: 8px 0;
 }
 
 .tree-level {
-  padding: 8px 0;
+  padding: 0;
 }
 
 .tree-label {
@@ -271,15 +328,13 @@ async function refreshAll() {
   background-color: #f5f5f5;
 }
 
-.tree-label-database {
-  font-weight: 600;
-  border-bottom: 1px solid #eee;
-  background-color: #fafafa;
+.tree-label.active {
+  background-color: #e3f2fd;
+  color: #1976D2;
 }
 
-.tree-label-schema {
+.tree-label-database {
   font-weight: 600;
-  border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
   background-color: #fafafa;
 }
@@ -298,6 +353,11 @@ async function refreshAll() {
   text-overflow: ellipsis;
 }
 
+.tree-label.active .tree-text {
+  color: #1976D2;
+  font-weight: 500;
+}
+
 .tree-owner {
   font-size: 11px;
   color: #999;
@@ -310,12 +370,31 @@ async function refreshAll() {
   text-align: center;
 }
 
+.current-indicator {
+  font-size: 12px;
+  color: #4CAF50;
+  margin-left: 4px;
+}
+
 .tree-children {
   padding-left: 16px;
 }
 
 .tree-item {
   border-left: 2px solid #eee;
+}
+
+.tree-loading {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+.tree-empty {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #bbb;
 }
 
 .table-item {
@@ -353,6 +432,66 @@ async function refreshAll() {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
+}
+
+/* 表详情区域 */
+.table-detail-section {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* 空状态 */
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.empty-content {
+  text-align: center;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-content p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* SQL切换按钮区域 */
+.sql-toggle-section {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+/* SQL面板 */
+.sql-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .editor-section {
@@ -387,6 +526,15 @@ async function refreshAll() {
 .btn-sm {
   padding: 6px 12px;
   font-size: 13px;
+}
+
+.btn-primary {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #45a049;
 }
 
 .btn-secondary {

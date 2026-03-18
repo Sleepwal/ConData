@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQueryStore } from '../../stores/query'
 import { useConnectionStore } from '../../stores/connection'
 
@@ -9,8 +9,22 @@ const connectionStore = useConnectionStore()
 const sql = ref('')
 const limit = ref(1000)
 
+// Watch for changes from store (e.g., from TableDetail component)
+watch(() => queryStore.currentSql, (newSql) => {
+  if (newSql && newSql !== sql.value) {
+    sql.value = newSql
+  }
+})
+
 const canExecute = computed(() => {
   return sql.value.trim().length > 0 && connectionStore.isConnected
+})
+
+// Sync local sql changes to store
+watch(sql, (newValue) => {
+  if (newValue !== queryStore.currentSql) {
+    queryStore.currentSql = newValue
+  }
 })
 
 async function executeQuery() {

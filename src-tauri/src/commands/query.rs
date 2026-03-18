@@ -1,5 +1,8 @@
+use crate::db::pool::ConnectionPool;
 use crate::error::Result;
+use crate::models::connection::ConnectionStatus;
 use crate::models::query::{DatabaseInfo, QueryRequest, QueryResult, SchemaInfo, TableInfo, TableSchema};
+use crate::services::connection_manager::ConnectionManager;
 use crate::services::postgres_service::PostgresService;
 
 #[tauri::command]
@@ -11,6 +14,14 @@ pub async fn execute_query(request: QueryRequest) -> Result<QueryResult> {
 #[tauri::command]
 pub async fn get_tables(connection_id: String) -> Result<Vec<TableInfo>> {
     PostgresService::get_tables(&connection_id).await
+}
+
+#[tauri::command]
+pub async fn get_tables_by_schema(
+    connection_id: String,
+    schema: String,
+) -> Result<Vec<TableInfo>> {
+    PostgresService::get_tables_by_schema(&connection_id, &schema).await
 }
 
 #[tauri::command]
@@ -30,4 +41,29 @@ pub async fn get_databases(connection_id: String) -> Result<Vec<DatabaseInfo>> {
 #[tauri::command]
 pub async fn get_schemas(connection_id: String) -> Result<Vec<SchemaInfo>> {
     PostgresService::get_schemas(&connection_id).await
+}
+
+/// Switch to a different database by creating a new connection pool
+/// Returns a new connection_id in the format: {original_id}@{database_name}
+#[tauri::command]
+pub async fn switch_database(
+    connection_id: String,
+    database_name: String,
+) -> Result<ConnectionStatus> {
+    let config = ConnectionManager::get_connection(&connection_id)?;
+
+    let mut new_config = config.clone();
+    new_config.database = database_name.clone();
+    new_config.id = format!("{}@{}", connection_id, database_name);
+
+    ConnectionPool::connect(new_config.id.clone(), &new_config).await?;
+
+    let version = PostgresService::get_database_version(&new_config.id).await.ok();
+
+    Ok(ConnectionStatus {
+        id: new_config.id,
+        connected: true,
+        message: format!("已切换到数据库: {}", database_name),
+        database_version: version,
+    })
 }

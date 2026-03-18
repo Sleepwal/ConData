@@ -19,10 +19,20 @@ export const useQueryStore = defineStore('query', () => {
   const schemasError = ref<string | null>(null)
   const tablesError = ref<string | null>(null)
 
+  // New states for database switching and table details
+  const currentDatabase = ref<string | null>(null)
+  const currentConnectionId = ref<string | null>(null)
+  const schemaTables = ref<Map<string, TableInfo[]>>(new Map())
+  const selectedTable = ref<TableSchema | null>(null)
+  const showTableDetail = ref(false)
+
   const hasResult = computed(() => queryResult.value !== null)
   const hasError = computed(() => error.value !== null)
 
   async function executeQuery(connectionId: string, sql: string, limit: number = 1000) {
+    // Use the effective connection ID (switched database if any)
+    const effectiveConnectionId = getEffectiveConnectionId(connectionId)
+
     if (!sql.trim()) {
       error.value = 'SQL语句不能为空'
       return
@@ -34,7 +44,7 @@ export const useQueryStore = defineStore('query', () => {
 
     try {
       const request: QueryRequest = {
-        connection_id: connectionId,
+        connection_id: effectiveConnectionId,
         sql: sql.trim(),
         limit
       }
@@ -47,7 +57,7 @@ export const useQueryStore = defineStore('query', () => {
 
       const historyItem: QueryHistoryItem = {
         id: Date.now().toString(),
-        connection_id: connectionId,
+        connection_id: effectiveConnectionId,
         sql: sql.trim(),
         executed_at: new Date().toISOString(),
         execution_time_ms: result.execution_time_ms || executionTime,
@@ -90,7 +100,8 @@ export const useQueryStore = defineStore('query', () => {
     loadingSchemas.value = true
     schemasError.value = null
     try {
-      schemas.value = await queryApi.getSchemas(connectionId)
+      const effectiveId = getEffectiveConnectionId(connectionId)
+      schemas.value = await queryApi.getSchemas(effectiveId)
       return schemas.value
     } catch (err) {
       schemasError.value = err instanceof Error ? err.message : '加载模式列表失败'
@@ -105,7 +116,8 @@ export const useQueryStore = defineStore('query', () => {
     loadingTables.value = true
     tablesError.value = null
     try {
-      tables.value = await queryApi.getTables(connectionId)
+      const effectiveId = getEffectiveConnectionId(connectionId)
+      tables.value = await queryApi.getTables(effectiveId)
       return tables.value
     } catch (err) {
       tablesError.value = err instanceof Error ? err.message : '加载表列表失败'
@@ -118,11 +130,81 @@ export const useQueryStore = defineStore('query', () => {
 
   async function getTableSchema(connectionId: string, schema: string, tableName: string): Promise<TableSchema | null> {
     try {
-      return await queryApi.getTableSchema(connectionId, schema, tableName)
+      const effectiveId = getEffectiveConnectionId(connectionId)
+      return await queryApi.getTableSchema(effectiveId, schema, tableName)
     } catch (err) {
       console.error('Failed to get table schema:', err)
       return null
     }
+  }
+
+  // Switch to a different database
+  async function switchDatabase(baseConnectionId: string, databaseName: string) {
+    loadingDatabases.value = true
+    try {
+      const status = await queryApi.switchDatabase(baseConnectionId, databaseName)
+      currentDatabase.value = databaseName
+      currentConnectionId.value = status.id
+
+      // Clear previous data
+      schemas.value = []
+      tables.value = []
+      schemaTables.value.clear()
+      selectedTable.value = null
+      showTableDetail.value = false
+
+      // Load schemas for the new database
+      await loadSchemas(status.id)
+
+      return status
+    } catch (err) {
+      databasesError.value = err instanceof Error ? err.message : '切换数据库失败'
+      console.error('Failed to switch database:', err)
+      throw err
+    } finally {
+      loadingDatabases.value = false
+    }
+  }
+
+  // Load tables for a specific schema (lazy loading)
+  async function loadTablesBySchema(connectionId: string, schema: string) {
+    if (schemaTables.value.has(schema)) return
+
+    loadingTables.value = true
+    try {
+      const effectiveId = getEffectiveConnectionId(connectionId)
+      const tables = await queryApi.getTablesBySchema(effectiveId, schema)
+      schemaTables.value.set(schema, tables)
+    } catch (err) {
+      tablesError.value = err instanceof Error ? err.message : '加载表列表失败'
+      console.error('Failed to load tables by schema:', err)
+      throw err
+    } finally {
+      loadingTables.value = false
+    }
+  }
+
+  // Load table detail and show the detail panel
+  async function loadTableDetail(connectionId: string, schema: string, tableName: string) {
+    try {
+      const effectiveId = getEffectiveConnectionId(connectionId)
+      const schemaDetail = await queryApi.getTableSchema(effectiveId, schema, tableName)
+      selectedTable.value = schemaDetail
+      showTableDetail.value = true
+    } catch (err) {
+      console.error('Failed to load table detail:', err)
+    }
+  }
+
+  // Get the effective connection ID (handles switched database)
+  function getEffectiveConnectionId(baseId: string): string {
+    return currentConnectionId.value || baseId
+  }
+
+  // Close table detail panel
+  function closeTableDetail() {
+    showTableDetail.value = false
+    selectedTable.value = null
   }
 
   function setCurrentSql(sql: string) {
@@ -142,6 +224,19 @@ export const useQueryStore = defineStore('query', () => {
     error.value = null
   }
 
+  // Reset all state when disconnecting
+  function resetState() {
+    currentDatabase.value = null
+    currentConnectionId.value = null
+    schemaTables.value.clear()
+    selectedTable.value = null
+    showTableDetail.value = false
+    databases.value = []
+    schemas.value = []
+    tables.value = []
+    queryResult.value = null
+  }
+
   return {
     queryResult,
     queryHistory,
@@ -159,6 +254,13 @@ export const useQueryStore = defineStore('query', () => {
     tablesError,
     hasResult,
     hasError,
+    // New states
+    currentDatabase,
+    currentConnectionId,
+    schemaTables,
+    selectedTable,
+    showTableDetail,
+    // Original methods
     executeQuery,
     loadDatabases,
     loadSchemas,
@@ -167,6 +269,13 @@ export const useQueryStore = defineStore('query', () => {
     setCurrentSql,
     clearResult,
     clearHistory,
-    clearError
+    clearError,
+    // New methods
+    switchDatabase,
+    loadTablesBySchema,
+    loadTableDetail,
+    getEffectiveConnectionId,
+    closeTableDetail,
+    resetState
   }
 })
