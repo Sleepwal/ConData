@@ -254,9 +254,9 @@ impl PostgresService {
             .iter()
             .map(|row| DatabaseInfo {
                 name: row.get(0),
-                owner: row.get(1),
-                encoding: row.get(2),
-                collate: row.get(3),
+                owner: row.try_get(1).ok().flatten(),
+                encoding: row.try_get(2).ok().flatten(),
+                collate: row.try_get(3).ok().flatten(),
             })
             .collect();
 
@@ -290,7 +290,7 @@ impl PostgresService {
             .iter()
             .map(|row| SchemaInfo {
                 name: row.get(0),
-                owner: row.get(1),
+                owner: row.try_get(1).ok().flatten(),
             })
             .collect();
 

@@ -30,11 +30,17 @@ watch(() => connectionStore.activeConnectionId, (newId) => {
 })
 
 async function loadDatabaseData(connectionId: string) {
-  await Promise.all([
+  const results = await Promise.allSettled([
     queryStore.loadDatabases(connectionId),
     queryStore.loadSchemas(connectionId),
     queryStore.loadTables(connectionId)
   ])
+  
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Failed to load data source ${index + 1}:`, result.reason)
+    }
+  })
 }
 
 function toggleDatabase(databaseName: string) {
@@ -90,7 +96,7 @@ async function refreshAll() {
             请先连接到数据库
           </div>
           
-          <div v-else-if="queryStore.loading" class="sidebar-message">
+          <div v-else-if="queryStore.loadingDatabases || queryStore.loadingSchemas || queryStore.loadingTables" class="sidebar-message">
             加载中...
           </div>
           

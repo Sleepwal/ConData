@@ -11,7 +11,13 @@ export const useQueryStore = defineStore('query', () => {
   const schemas = ref<SchemaInfo[]>([])
   const currentSql = ref('')
   const loading = ref(false)
+  const loadingDatabases = ref(false)
+  const loadingSchemas = ref(false)
+  const loadingTables = ref(false)
   const error = ref<string | null>(null)
+  const databasesError = ref<string | null>(null)
+  const schemasError = ref<string | null>(null)
+  const tablesError = ref<string | null>(null)
 
   const hasResult = computed(() => queryResult.value !== null)
   const hasError = computed(() => error.value !== null)
@@ -66,47 +72,47 @@ export const useQueryStore = defineStore('query', () => {
   }
 
   async function loadDatabases(connectionId: string) {
-    loading.value = true
-    error.value = null
+    loadingDatabases.value = true
+    databasesError.value = null
     try {
       databases.value = await queryApi.getDatabases(connectionId)
       return databases.value
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '加载数据库列表失败'
+      databasesError.value = err instanceof Error ? err.message : '加载数据库列表失败'
       console.error('Failed to load databases:', err)
       throw err
     } finally {
-      loading.value = false
+      loadingDatabases.value = false
     }
   }
 
   async function loadSchemas(connectionId: string) {
-    loading.value = true
-    error.value = null
+    loadingSchemas.value = true
+    schemasError.value = null
     try {
       schemas.value = await queryApi.getSchemas(connectionId)
       return schemas.value
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '加载模式列表失败'
+      schemasError.value = err instanceof Error ? err.message : '加载模式列表失败'
       console.error('Failed to load schemas:', err)
       throw err
     } finally {
-      loading.value = false
+      loadingSchemas.value = false
     }
   }
 
   async function loadTables(connectionId: string) {
-    loading.value = true
-    error.value = null
+    loadingTables.value = true
+    tablesError.value = null
     try {
       tables.value = await queryApi.getTables(connectionId)
       return tables.value
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '加载表列表失败'
+      tablesError.value = err instanceof Error ? err.message : '加载表列表失败'
       console.error('Failed to load tables:', err)
       throw err
     } finally {
-      loading.value = false
+      loadingTables.value = false
     }
   }
 
@@ -144,7 +150,13 @@ export const useQueryStore = defineStore('query', () => {
     schemas,
     currentSql,
     loading,
+    loadingDatabases,
+    loadingSchemas,
+    loadingTables,
     error,
+    databasesError,
+    schemasError,
+    tablesError,
     hasResult,
     hasError,
     executeQuery,
